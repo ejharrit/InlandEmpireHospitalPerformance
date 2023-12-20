@@ -8,17 +8,6 @@
 ############################################################################################################################*
 
 
-##### Load the necessary packages                                                                                       #####
-#####*
-
-library(tidyverse)
-library(janitor)
-library(httr2)
-
-##### --
-#####*
-
-
 ##### Build a function to pull the data                                                                                 #####
 #####*
 
