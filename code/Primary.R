@@ -28,8 +28,10 @@ setwd("C:/Users/Owner/Desktop/Portfolio_Of_Projects/InlandEmpireHospitalPerforma
 ### from one package are preferred over another loaded package can be handled within the individual
 ### files (e.g. adding packagename:: before the individual function call if there is a redundancy)
 library(tidyverse)
+library(stringr)
 library(janitor)
 library(httr2)
+library(skimr)
 
 ##### --
 #####*
@@ -38,12 +40,12 @@ library(httr2)
 ##### Set which files need to run                                                                                       #####
 #####*
 
-### This section allows a user to set which code files need to be run. 
+### This section allows a user to set which code files need to be run.
 ### For example, loading the data repeatedly is not necessary. Once that
-### code has been run and the data is saved to the machine it need not be 
-### run again, even though it is included in this Primary.R file. For 
-### files that should *NOT* be run again, set them to 0 and for files that 
-### *DO* need run, set them to 1. If this is your first time running any thing 
+### code has been run and the data is saved to the machine it need not be
+### run again, even though it is included in this Primary.R file. For
+### files that should *NOT* be run again, set them to 0 and for files that
+### *DO* need run, set them to 1. If this is your first time running any thing
 ### from this project, it is recommended that you set all the files below to
 ### 1. They are divided up into general groups to make it easier to navigate
 ### which files need to run again.
@@ -58,12 +60,14 @@ LoadData <- 0
 ##### Run the files                                                                                                     #####
 #####*
 
-### The code below runs the code in the other file of this project. 
-### They are divided up into general groups to make it easier to 
+### The code below runs the code in the other file of this project.
+### They are divided up into general groups to make it easier to
 ### navigate which files will run in what order.
 
 ### loading, cleaning, and preparing the data for analysis
-if(LoadData == 1){source("code/LoadAndCleanData/LoadData.R")}
+if (LoadData == 1) {
+  source("code/LoadAndCleanData/LoadData.R")
+}
 
 ##### --
 #####*

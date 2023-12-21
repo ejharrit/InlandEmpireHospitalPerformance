@@ -94,6 +94,16 @@ names(hospital_data) <- dataset_names
 #####*
 
 
+##### Download the documentation for the data we downloaded                                                             #####
+#####*
+
+download.file("https://data.cms.gov/provider-data/sites/default/files/data_dictionaries/hospital/HOSPITAL_Data_Dictionary.pdf",
+              destfile = "data/Documentation/HOSPITAL_Data_Dictionary.pdf")
+
+##### --
+#####*
+
+
 ##### save the data                                                                                                     #####
 #####*
 
