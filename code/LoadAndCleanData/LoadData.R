@@ -65,11 +65,11 @@ data_links <- map_chr(
 )
 ### Create a vector of names for the individual datasets
 dataset_names <- c(
-  "maternal_health",                      "general_information",                  "OAS_CAHPS_ambulatory_surgical_centers",
+  "maternal_health",                      "general_information",                  "qas_cahps_ambulatory_surgical_centers",
   "ambulatory_surgical_center_quality",   "unplanned_hospital_visits",            "healthcare_associated_infections",
   "payment_and_value_of_care",            "patient_survey_hcahps",                "oncology_care_ceasures_exempt_cancer",
   "pch_hcahps_pps_exempt_cancer",         "safety_and_healthcare_associated",     "cms_medicare_psi_90",
-  "inpatient_psychiatric_facility",       "medicare_spending_per_beneficiary",    "outpatient__imaging_efficiency",
+  "inpatient_psychiatric_facility",       "medicare_spending_per_beneficiary",    "outpatient_imaging_efficiency",
   "oas_cahps_survey_outpatient",          "complications_and_deaths",             "timely_and_effective_care",
   "unplanned_hospital_visits_exempt",     "hvbp_person_and_community",            "hvbp_safety",
   "medicare_hospital_spending_by_claim",  "hvbp_total_performance_score",         "hvbp_efficiency_scores",
