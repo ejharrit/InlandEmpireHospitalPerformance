@@ -468,6 +468,38 @@ unplanned_hospital_visits_exempt %>%
 #####*
 
 
+##### create a table to convert zip to cbsa                                                                             #####
+#####*
+
+zip_cbsa <- read_excel("data/raw/ZIP_CBSA_092023.xlsx", sheet = "Export Worksheet") %>%
+  clean_names()
+
+cbsa_csa <- read_excel("data/raw/Census_CBSA_CSA_2023.xlsx", skip = 2, col_names = TRUE) %>%
+  clean_names()
+
+zip_cbsa <- zip_cbsa %>%
+  filter(usps_zip_pref_state == "CA") %>%
+  ### zip codes map to multiple CBSAs, the code below assigns a zipcode to the CBSA with the highest ratio
+  ### of residential addresses for that zipcode
+  group_by(zip) %>%
+  arrange(desc(res_ratio)) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  distinct(zip, cbsa) %>%
+  ### Join the zip_cbsa file to the cbsa_csa file to get the cbsa_title
+  left_join(
+    cbsa_csa %>%
+      filter(state_name == "California") %>%
+      distinct(cbsa_code, cbsa_title),
+    by = c("cbsa" = "cbsa_code")
+  )
+
+remove(cbsa_csa)
+
+##### --
+#####*
+
+
 ##### save all the files                                                                                                #####
 #####*
 
