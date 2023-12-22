@@ -32,6 +32,7 @@ library(stringr)
 library(janitor)
 library(httr2)
 library(skimr)
+library(beepr)
 
 ##### --
 #####*
@@ -51,7 +52,8 @@ library(skimr)
 ### which files need to run again.
 
 ### loading, cleaning, and preparing the data for analysis
-LoadData <- 0
+LoadData <- 1
+CleanRawDataAndSave <- 1
 
 ##### --
 #####*
@@ -69,14 +71,17 @@ if (LoadData == 1) {
   source("code/LoadAndCleanData/LoadData.R")
 }
 
+if (CleanRawDataAndSave == 1) {
+  source("code/LoadAndCleanData/CleanRawDataAndSave.R")
+}
+
 ##### --
 #####*
 
 
 ##### Clean the environment                                                                                             #####
 #####*
-
-remove(LoadData)
+rm(list = ls())
 
 ##### --
 #####*

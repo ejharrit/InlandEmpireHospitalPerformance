@@ -21,7 +21,23 @@ load("data/raw/hospital_data_list.RData")
 ##### Custom functions                                                                                                  #####
 #####*
 
+separate_multiple_cols <- function(x, criteria){
+  if(is.character(criteria)){
+    x %>%
+    mutate(across(matches(criteria), 
+                  ~ list(tibble(col1 = .) %>% 
+                           separate(col1, into = str_c(cur_column(), c("", "_base")), sep = " ", extra = "merge"))))
+  }else{
+    print("criteria must be a character vector to pass to matches() and select which columns to separate.")
+  }
+}
 
+basic_cleaning <- function(x){
+  x %>%
+    distinct() %>%
+    remove_empty(c("rows", "cols")) %>%
+    clean_names()
+}
 
 ##### --
 #####*
@@ -71,10 +87,8 @@ remove(hospital_data)
 glimpse(ambulatory_surgical_center_quality)
 
 ambulatory_surgical_center_quality <- ambulatory_surgical_center_quality %>%
-  distinct() %>%
-  mutate(across(matches("rate|cases|limit|sample"), \(x) as.numeric(x))) %>% 
-  select(where(~!all(is.na(.x)))) %>%
-  clean_names()
+  basic_cleaning() %>%
+  mutate(across(matches("rate|cases|limit|sample"), \(x) as.numeric(x)))
 
 ##### --
 #####*
@@ -85,21 +99,11 @@ ambulatory_surgical_center_quality <- ambulatory_surgical_center_quality %>%
 
 glimpse(cms_medicare_psi_90)
 
-### create a new table of the measures
-psi_90_measures <- cms_medicare_psi_90 %>%
-  distinct(measure_id, measure_name)
-
-list_names <- c(list_names, "psi_90_measures")
-
 ### clean cms_medicare_psi_90
 cms_medicare_psi_90 <- cms_medicare_psi_90 %>%
-  distinct() %>%
-  mutate(
-    rate = as.numeric(rate)) %>%
-  select(-measure_name) %>%
-  mutate(across((matches("date")), \(x) mdy(x))) %>%
-  select(where(~!all(is.na(.x)))) %>%
-  clean_names()
+  basic_cleaning() %>%
+  mutate(rate = as.numeric(rate)) %>%
+  mutate(across((matches("date")), \(x) mdy(x))) 
   
 
 ##### --
@@ -111,20 +115,11 @@ cms_medicare_psi_90 <- cms_medicare_psi_90 %>%
 
 glimpse(complications_and_deaths)
 
-### create a new table of the measures
-complications_and_deaths_measures <- complications_and_deaths %>%
-  distinct(measure_id, measure_name)
-
-list_names <- c(list_names, "complications_and_deaths_measures")
-
 ### clean complications_and_deaths
 complications_and_deaths <- complications_and_deaths %>%
-  distinct() %>%
-  select(-measure_name) %>%
+  basic_cleaning() %>%
   mutate(across(matches("denominator|score|estimate"), \(x) as.numeric(x))) %>% 
-  mutate(across((matches("date")), \(x) mdy(x))) %>%
-  select(where(~!all(is.na(.x)))) %>%
-  clean_names()
+  mutate(across((matches("date")), \(x) mdy(x)))
 
 ##### --
 #####*
@@ -136,11 +131,8 @@ complications_and_deaths <- complications_and_deaths %>%
 glimpse(general_information)
 
 general_information <- general_information %>%
-  distinct()%>%
-  mutate(across(matches("count_|_count"), \(x) as.numeric(x)),
-         hospital_overall_rating = as.numeric(hospital_overall_rating)) %>% 
-  select(where(~!all(is.na(.x)))) %>%
-  clean_names()
+  basic_cleaning() %>%
+  mutate(across((matches("count_|_count|raiting")&!matches("footnote")), \(x) as.numeric(x))) 
 
 ##### --
 #####*
@@ -151,21 +143,12 @@ general_information <- general_information %>%
 
 glimpse(healthcare_associated_infections)
 
-### create a new table for the measures
-healthcare_associated_infections_measures <- healthcare_associated_infections %>%
-  distinct(measure_id, measure_name)
-
-list_names <- c(list_names, "healthcare_associated_infections_measures")
-
 ### clean healthcare_associated_infections
 healthcare_associated_infections <- healthcare_associated_infections %>%
-  distinct() %>%
+  basic_cleaning() %>%
   mutate(score = na_if(score, "--")) %>%
-  select(-measure_name) %>%
   mutate(across(matches("score"), \(x) as.numeric(x))) %>% 
-  mutate(across((matches("date")), \(x) mdy(x))) %>%
-  select(where(~!all(is.na(.x)))) %>%
-  clean_names()
+  mutate(across((matches("date")), \(x) mdy(x)))
 
 ##### --
 #####*
@@ -177,22 +160,18 @@ healthcare_associated_infections <- healthcare_associated_infections %>%
 glimpse(hvbp_clinical_outcomes_domain)
 
 hvbp_clinical_outcomes_domain <- hvbp_clinical_outcomes_domain %>%
-  distinct() %>% 
+  basic_cleaning() %>%
   ### A tricky part here. All the columns that are scores on a scale (e.g. "5 out of 9", "4 out of 10") we convert
   ### to two columns. One column to keep track of the score received, and the other to keep track of the scale 
-  select(where(~!all(is.na(.x)))) %>%
   group_by(facility_id) %>%
-  mutate(across(matches("points|score"), ~ list(tibble(col1 = .) %>% 
-                  separate(col1, into = str_c(cur_column(), c("", "_base")), sep = " ", extra = "merge")))) %>% 
+  separate_multiple_cols("points|score") %>% 
   unnest(cols = c(mort_30_ami_achievement_points,     mort_30_ami_improvement_points,   mort_30_ami_measure_score,
                   mort_30_hf_achievement_points,      mort_30_hf_improvement_points,    mort_30_hf_measure_score, 
                   mort_30_copd_achievement_points,    mort_30_copd_improvement_points,  mort_30_copd_measure_score, 
                   mort_30_cabg_achievement_points,    mort_30_cabg_improvement_points,  mort_30_cabg_measure_score, 
                   comp_hip_knee_achievement_points,   comp_hip_knee_improvement_points, comp_hip_knee_measure_score)) %>%
   ungroup() %>%
-  mutate(across((matches("points|score|threshold|benchmark|rate")&!matches("_base$")), \(x) as.numeric(x))) %>% 
-  select(where(~!all(is.na(.x)))) %>%
-  print(width = Inf)
+  mutate(across((matches("points|score|threshold|benchmark|rate")&!matches("_base$")), \(x) as.numeric(x)))
 
 ##### --
 #####*
@@ -204,14 +183,14 @@ hvbp_clinical_outcomes_domain <- hvbp_clinical_outcomes_domain %>%
 glimpse(hvbp_efficiency_scores)
 
 hvbp_efficiency_scores <- hvbp_efficiency_scores %>%
-  distinct() %>%
+  basic_cleaning() %>%
   ### A tricky part here. All the columns that are scores on a scale (e.g. "5 out of 9", "4 out of 10") we convert
   ### to two columns. One column to keep track of the score received, and the other to keep track of the scale 
-  mutate(across(matches("points|score"), ~ tibble(col1 = .) %>% 
-                  separate(col1, into = str_c(cur_column(), c("", "_base")), sep = " ", extra = "merge"))) %>% 
-  unnest(cols = matches("points|score")) %>%
-  mutate(across((matches("points|score|threshold|benchmark|rate")&!matches("_base$")), \(x) as.numeric(x))) %>% 
-  select(where(~!all(is.na(.x))))
+  group_by(facility_id) %>%
+  separate_multiple_cols("points|score") %>%
+  unnest(cols = c(mspb_1_achievement_points, mspb_1_improvement_points, mspb_1_measure_score)) %>%
+  ungroup() %>%
+  mutate(across((matches("points|score|threshold|benchmark|rate")&!matches("_base$")), \(x) as.numeric(x)))
 
 ##### --
 #####*
@@ -223,10 +202,9 @@ hvbp_efficiency_scores <- hvbp_efficiency_scores %>%
 glimpse(hvbp_person_and_community)
 
 hvbp_person_and_community <- hvbp_person_and_community %>%
-  distinct() %>%
+  basic_cleaning() %>%
   mutate(across((matches("points|score|threshold|benchmark|rate|floor")&!matches("_base$")), 
-                \(x) as.numeric(str_remove(x, "%")))) %>% 
-  select(where(~!all(is.na(.x))))
+                \(x) as.numeric(str_remove(x, "%"))))
 
 ##### --
 #####*
@@ -238,10 +216,9 @@ hvbp_person_and_community <- hvbp_person_and_community %>%
 glimpse(hvbp_safety)
 
 hvbp_safety <- hvbp_safety %>%
-  distinct() %>%
+  basic_cleaning() %>%
   mutate(across((matches("points|score|threshold|benchmark|rate|floor")&!matches("_base$")), 
-                \(x) as.numeric(str_remove(x, "%")))) %>% 
-  select(where(~!all(is.na(.x))))
+                \(x) as.numeric(str_remove(x, "%"))))
 
 ##### --
 #####*
@@ -253,10 +230,8 @@ hvbp_safety <- hvbp_safety %>%
 glimpse(hvbp_total_performance_score)
 
 hvbp_total_performance_score <- hvbp_total_performance_score %>%
-  distinct() %>%
-  mutate(across((matches("points|score|threshold|benchmark|rate|floor")&!matches("_base$")), \(x) as.numeric(x))) %>% 
-  select(where(~!all(is.na(.x))))
-
+  basic_cleaning() %>%
+  mutate(across((matches("points|score|threshold|benchmark|rate|floor")&!matches("_base$")), \(x) as.numeric(x))) 
 ##### --
 #####*
 
@@ -267,10 +242,10 @@ hvbp_total_performance_score <- hvbp_total_performance_score %>%
 glimpse(inpatient_psychiatric_facility)
 
 inpatient_psychiatric_facility <- inpatient_psychiatric_facility %>%
-  distinct() %>%
+  basic_cleaning() %>%
   mutate(across((matches("rate|num|den|percent|denominator|estimate")), \(x) as.numeric(x))) %>%
-  mutate(across((matches("date")), \(x) mdy(x))) %>%
-  select(where(~!all(is.na(.x))))
+  mutate(across((matches("date")), \(x) mdy(x)))
+
 
 ##### --
 #####*
@@ -281,24 +256,17 @@ inpatient_psychiatric_facility <- inpatient_psychiatric_facility %>%
 
 glimpse(maternal_health)
 
-### table of measures
-maternal_health_measures <- maternal_health %>%
-  distinct(measure_id, measure_name)
-
 ### clean maternal_health data set
 maternal_health <- maternal_health %>%
-  distinct() %>%
-  select(-measure_name) %>%
-  mutate(score = na_if(score, "Yes"),
+  basic_cleaning() %>% 
+  mutate(
          score = na_if(score, "Not Applicable (our hospital does not provide inpatient labor/delivery care)"),
-         score = na_if(score, "No"),
-         score = na_if(score, "")) %>%
-  pivot_wider(
-    names_from = measure_id,
-    values_from = c(score, sample)) %>%
-  mutate(across((matches("score|sample")), \(x) as.numeric(x))) %>%
-  mutate(across((matches("date")), \(x) mdy(x))) %>%
-  select(where(~!all(is.na(.x))))
+         score = na_if(score, "")
+         ) %>%
+  ### most values are numeric but measure SM_7 is measured with "Yes" or "No". Information on this variable would be lost
+  ### by converting values to numeric right now even though most of them are numeric. 
+  # mutate(across((matches("score|sample")), \(x) as.numeric(x))) %>%
+  mutate(across((matches("date")), \(x) mdy(x)))
 
 ##### --
 #####*
@@ -310,16 +278,9 @@ maternal_health <- maternal_health %>%
 glimpse(medicare_hospital_spending_by_claim)
 
 medicare_hospital_spending_by_claim <- medicare_hospital_spending_by_claim %>%
-  distinct() %>%
+  basic_cleaning() %>%
   mutate(across((matches("spndg")), \(x) as.numeric(str_remove(x, "%")))) %>%
-  pivot_wider(
-    names_from = c(period, claim_type),
-    values_from = c(avg_spndg_per_ep_hospital,  avg_spndg_per_ep_state, avg_spndg_per_ep_national, 
-                    percent_of_spndg_hospital,  percent_of_spndg_state, percent_of_spndg_national)
-  ) %>%
-  clean_names() %>%
-  mutate(across((matches("date")), \(x) mdy(x))) %>%
-  select(where(~!all(is.na(.x))))
+  mutate(across((matches("date")), \(x) mdy(x)))
 
 ##### --
 #####*
@@ -330,18 +291,10 @@ medicare_hospital_spending_by_claim <- medicare_hospital_spending_by_claim %>%
 
 glimpse(medicare_spending_per_beneficiary)
 
-### build a table for the measures
-medicare_spending_per_beneficiary_measures <- medicare_spending_per_beneficiary %>%
-  distinct(measure_name, measure_id)
-
 medicare_spending_per_beneficiary <- medicare_spending_per_beneficiary %>%
-  distinct() %>%
-  select(-measure_name) %>%
-  pivot_wider(names_from = measure_id, values_from = score) %>%
+  basic_cleaning() %>%
   mutate(across((matches("MSPB-1")), \(x) as.numeric(x)))  %>%
-  clean_names() %>%
-  mutate(across((matches("date")), \(x) mdy(x))) %>%
-  select(where(~!all(is.na(.x))))
+  mutate(across((matches("date")), \(x) mdy(x)))
 
 ##### --
 #####*
@@ -350,14 +303,12 @@ medicare_spending_per_beneficiary <- medicare_spending_per_beneficiary %>%
 ##### OAS_CAHPS_ambulatory_surgical_centers data set                                                                    #####
 #####*
 
-glimpse(OAS_CAHPS_ambulatory_surgical_centers)
+glimpse(oas_cahps_ambulatory_surgical_centers)
 
-oas_cahps_ambulatory_surgical_centers <- OAS_CAHPS_ambulatory_surgical_centers %>%
-  distinct() %>%
+oas_cahps_ambulatory_surgical_centers <- oas_cahps_ambulatory_surgical_centers %>%
+  basic_cleaning() %>%
   mutate(across((matches("patients|score|survey")), \(x) as.numeric(x))) %>%
-  clean_names() %>%
-  mutate(across((matches("date")), \(x) mdy(x))) %>%
-  select(where(~!all(is.na(.x))))
+  mutate(across((matches("date")), \(x) mdy(x)))
 
 ##### --
 #####*
@@ -369,11 +320,9 @@ oas_cahps_ambulatory_surgical_centers <- OAS_CAHPS_ambulatory_surgical_centers %
 glimpse(oas_cahps_survey_outpatient)
 
 oas_cahps_survey_outpatient <- oas_cahps_survey_outpatient %>%
-  distinct() %>%
+  basic_cleaning() %>%
   mutate(across((matches("patients|score|survey")), \(x) as.numeric(x))) %>%
-  clean_names() %>%
-  mutate(across((matches("date")), \(x) mdy(x))) %>%
-  select(where(~!all(is.na(.x))))
+  mutate(across((matches("date")), \(x) mdy(x)))
 
 ##### --
 #####*
@@ -384,16 +333,11 @@ oas_cahps_survey_outpatient <- oas_cahps_survey_outpatient %>%
 
 glimpse(oncology_care_ceasures_exempt_cancer)
 
-### create a measure table
-oncology_care_ceasures_exempt_cancer_measures <- oncology_care_ceasures_exempt_cancer %>%
-  distinct(measure_id, measure_description)
-
 ### clean the oncology_care_ceasures_exempt_cancer data set
 oncology_care_ceasures_exempt_cancer <- oncology_care_ceasures_exempt_cancer %>%
-  distinct() %>%
-  select(-measure_description) %>%
+  basic_cleaning() %>%
   mutate(across((matches("date")), \(x) mdy(x))) %>%
-  mutate(across((matches("performance|denominator")), \(x) as.numeric(x)))
+  mutate(across((matches("performance|denominator")), \(x) as.numeric(x))) %>% print(width = Inf)
 
 ##### --
 #####*
@@ -404,19 +348,11 @@ oncology_care_ceasures_exempt_cancer <- oncology_care_ceasures_exempt_cancer %>%
 
 glimpse(outpatient_imaging_efficiency)
 
-### create a measure table
-outpatient_imaging_efficiency_measures <- outpatient_imaging_efficiency %>%
-  distinct(measure_id, measure_name)
-
 ### clean the outpatient_imaging_efficiency data set
 outpatient_imaging_efficiency <- outpatient_imaging_efficiency %>%
-  distinct() %>%
-  select(-measure_name) %>%
-  pivot_wider(names_from = measure_id, values_from = score) %>%
-  mutate(across((matches("OP")), \(x) as.numeric(x))) %>%
-  mutate(across((matches("date")), \(x) mdy(x))) %>%
-  select(where(~!all(is.na(.x)))) %>%
-  clean_names()
+  basic_cleaning() %>%
+  mutate(score = as.numeric(score)) %>%
+  mutate(across((matches("date")), \(x) mdy(x)))
 
 ##### --
 #####*
@@ -427,23 +363,11 @@ outpatient_imaging_efficiency <- outpatient_imaging_efficiency %>%
 
 glimpse(patient_survey_hcahps)
 
-### create a measures table
-patient_survey_hcahps_measures <- patient_survey_hcahps %>%
-  distinct(hcahps_measure_id, hcahps_question, hcahps_answer_description)
-
 ### clean the patient_survey_hcahps data set
 patient_survey_hcahps <- patient_survey_hcahps %>%
-  distinct() %>%
-  select(-c(hcahps_question, hcahps_answer_description)) %>%
-  pivot_wider(
-    names_from = hcahps_measure_id,
-    values_from = c(patient_survey_star_rating,           hcahps_answer_percent, hcahps_linear_mean_value,
-                    patient_survey_star_rating_footnote,  hcahps_answer_percent_footnote)
-  ) %>%
+  basic_cleaning() %>%
   mutate(across((matches("survey|linear|percent")&!matches("footnote")), \(x) as.numeric(x))) %>%
-  mutate(across((matches("date")), \(x) mdy(x))) %>%
-  select(where(~!all(is.na(.x)))) %>%
-  clean_names()
+  mutate(across((matches("date")), \(x) mdy(x))) %>% print(width = Inf)
 
 ##### --
 #####*
@@ -455,26 +379,12 @@ patient_survey_hcahps <- patient_survey_hcahps %>%
 
 glimpse(payment_and_value_of_care)
 
-### create a measures table 
-payment_and_value_of_care_measures <- payment_and_value_of_care %>%
-  distinct(payment_measure_id, payment_measure_name)
-
 ### clean the payment_and_value_of_care data set
 payment_and_value_of_care <- payment_and_value_of_care %>%
-  distinct() %>%
-  select(-payment_measure_name) %>%
-  pivot_wider(
-    names_from = payment_measure_id,
-    values_from = c(payment_category, denominator,      payment,                  lower_estimate,
-                    higher_estimate,  payment_footnote, value_of_care_display_id, value_of_care_category,
-                    value_of_care_display_name,         value_of_care_footnote)
-  ) %>% 
-  mutate(across((matches("denominator|payment|estimate")&!matches("footnote|category")), 
+  basic_cleaning() %>% 
+  mutate(across((matches("denominator|payment|estimate")&!matches("footnote|category|_id|_name")), 
                 \(x) as.numeric(str_remove_all(x, "\\$|,")))) %>%
-  mutate(across((matches("date")), \(x) mdy(x))) %>%
-  select(where(~!all(is.na(.x)))) %>%
-  clean_names()
-  
+  mutate(across((matches("date")), \(x) mdy(x)))
 
 ##### --
 #####*
@@ -485,20 +395,101 @@ payment_and_value_of_care <- payment_and_value_of_care %>%
 
 glimpse(pch_hcahps_pps_exempt_cancer)
 
-%>%
+pch_hcahps_pps_exempt_cancer <- pch_hcahps_pps_exempt_cancer %>%
+  basic_cleaning() %>% 
+  mutate(across((matches("rating|percent|linear|completed")&!matches("footnote")), 
+                \(x) as.numeric(str_remove_all(x, "\\$|,")))) %>%
+  mutate(across((matches("date")), \(x) mdy(x)))
+
+##### --
+#####*
+
+
+##### safety_and_healthcare_associated data set                                                                         #####
+#####*
+
+glimpse(safety_and_healthcare_associated)
+
+safety_and_healthcare_associated <- safety_and_healthcare_associated %>%
+  basic_cleaning() %>% 
+  mutate(
+    score = na_if(score, "--"),
+    score = as.numeric(score)
+    ) %>%
+  mutate(across((matches("date")), \(x) mdy(x)))
+
+##### --
+#####*
+
+
+##### timely_and_effective_care data set                                                                                #####
+#####*
+
+glimpse(timely_and_effective_care)
+
+timely_and_effective_care <- timely_and_effective_care %>%
+  basic_cleaning() %>% 
+  ### most values are numeric but measure EDV is measured with values such as "medium", "high" and "very high".
+  ### Information on this variable would be lost by converting values to numeric right now even though most of 
+  ### them are numeric. 
+  # mutate(score = as.numeric(score)) %>%
+  mutate(across((matches("date")), \(x) mdy(x)))
+
+##### --
+#####*
+
+
+##### unplanned_hospital_visits data set                                                                                #####
+#####*
+
+glimpse(unplanned_hospital_visits)
+
+unplanned_hospital_visits <- unplanned_hospital_visits %>%
+  basic_cleaning() %>% 
+  mutate(across(matches("denominator|score|estimate|number_of"), \(x) as.numeric(x))) %>%
+  mutate(across((matches("date")), \(x) mdy(x)))
+
+##### --
+#####*
+
+
+##### unplanned_hospital_visits_exempt data set                                                                         #####
+#####*
+
+glimpse(unplanned_hospital_visits_exempt)
+
+unplanned_hospital_visits_exempt %>%
+  basic_cleaning() %>%
+  mutate(across(matches("total|rate|limit"), \(x) as.numeric(x))) %>%
+  mutate(across((matches("date")), \(x) mdy(x))) %>%
   print(width=Inf)
 
 ##### --
 #####*
 
 
-##### chunk name here                                                                                                   #####
+##### save all the files                                                                                                #####
 #####*
 
-%>%
-  print(width=Inf)
+### save all data frames individually
+dataframes <- names(which(unlist(eapply(.GlobalEnv,is.data.frame))))
+
+walk(dataframes, ~ write_csv(.GlobalEnv[[.x]], file = paste0("data/cleaned/", .x, ".csv")))
+
+### Sometimes it might be easier to load all the data in a list and select the data frames needed from that.
+### The code below combines all the dataframes into a list and saves it
+hospital_data <- map(dataframes, ~.GlobalEnv[[.x]])
+names(hospital_data) <- dataframes
+
+save(hospital_data, file = "data/cleaned/hospital_data.RData")
+
+### clean the environment
+rm(list = str_remove_all(ls(), "LoadData|CleanRawDataAndSave"))
 
 ##### --
 #####*
 
 
+
+beep("treasure")
+print("End of: CleanRawDataAndSave.R")

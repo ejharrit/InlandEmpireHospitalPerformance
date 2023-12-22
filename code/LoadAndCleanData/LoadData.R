@@ -65,7 +65,7 @@ data_links <- map_chr(
 )
 ### Create a vector of names for the individual datasets
 dataset_names <- c(
-  "maternal_health",                      "general_information",                  "qas_cahps_ambulatory_surgical_centers",
+  "maternal_health",                      "general_information",                  "oas_cahps_ambulatory_surgical_centers",
   "ambulatory_surgical_center_quality",   "unplanned_hospital_visits",            "healthcare_associated_infections",
   "payment_and_value_of_care",            "patient_survey_hcahps",                "oncology_care_ceasures_exempt_cancer",
   "pch_hcahps_pps_exempt_cancer",         "safety_and_healthcare_associated",     "cms_medicare_psi_90",
@@ -111,7 +111,11 @@ download.file("https://data.cms.gov/provider-data/sites/default/files/data_dicti
 save(hospital_data, file = "data/raw/hospital_data_list.RData")
 
 ### clean our environment
-remove(hospital_data, data_links, dataset_names, distribution_ids, get_content)
+rm(list = str_remove_all(ls(), "LoadData|CleanRawDataAndSave"))
 
 ##### --
 #####*
+
+
+beep("mario")
+print("End of: LoadData.R")
