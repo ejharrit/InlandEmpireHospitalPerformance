@@ -1,0 +1,3 @@
+facility_id,facility_name,hospital_type,address,city_town,state,zip_code,county_parish,measure_id,measure_description,hospital_performance,denominator,footnote,start_date,end_date
+050146,CITY OF HOPE HELFORD CLINICAL RESEARCH HOSPITAL,Acute Care Hospitals,1500 E DUARTE ROAD,DUARTE,CA,91010,LOS ANGELES,PCH-15,Oncology: Plan of Care for Moderate to Severe Pain - Medical Oncology and Radiation Oncology,100,500,2,2021-01-01,2021-12-31
+050660,USC KENNETH NORRIS JR CANCER HOSPITAL,Acute Care Hospitals,1441 EASTLAKE AVE,LOS ANGELES,CA,90089,LOS ANGELES,PCH-15,Oncology: Plan of Care for Moderate to Severe Pain - Medical Oncology and Radiation Oncology,92,344,,2021-01-01,2021-12-31

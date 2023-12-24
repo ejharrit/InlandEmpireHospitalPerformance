@@ -28,12 +28,14 @@ setwd("C:/Users/Owner/Desktop/Portfolio_Of_Projects/InlandEmpireHospitalPerforma
 ### from one package are preferred over another loaded package can be handled within the individual
 ### files (e.g. adding packagename:: before the individual function call if there is a redundancy)
 library(tidyverse)
+library(DescTools)
 library(stringr)
 library(janitor)
 library(readxl)
 library(httr2)
 library(skimr)
 library(beepr)
+library(infer)
 library(sf)
 
 ##### --
@@ -53,12 +55,26 @@ library(sf)
 ### 1. They are divided up into general groups to make it easier to navigate
 ### which files need to run again.
 
+save_enviroment <- paste0(
+  "save_enviroment",      "LoadData",             "CleanRawDataAndSave",    "HospitalQualityHypothesisTestingDataPrep",
+  
+)          
 ### loading, cleaning, and preparing the data for analysis
 LoadData <- 1
 CleanRawDataAndSave <- 1
   ### preparing for data analysis
 {
-  
+  HospitalQualityHypothesisTestingDataPrep <- 1
+}
+
+### EDA and Analyses
+  ### Exploratory Analyses
+{
+  HospitalQualityHypothesisTestingEDA <- 1
+}
+  ### Analyses
+{
+  HospitalQualityHypothesisTesting <- 1
 }
 
 ##### --

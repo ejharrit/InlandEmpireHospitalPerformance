@@ -501,7 +501,7 @@ zip_cbsa <- zip_cbsa %>%
       left_join(
         read_delim("https://www2.census.gov/geo/docs/maps-data/data/rel2020/ua/tab20_ua20_zcta520_natl.txt") %>%
           filter(str_detect(NAMELSAD_UA_20, ", CA")) %>%
-          group_by(GEOID_ZCTA5_20, GEOID_UA_20) %>%
+          group_by(GEOID_ZCTA5_20) %>%
           arrange(desc(AREALAND_PART)) %>%
           slice_head(n = 1) %>%
           ungroup() %>%
@@ -509,7 +509,8 @@ zip_cbsa <- zip_cbsa %>%
         by = c("urban_area" = "GEOID_UA_20")
       ),
     by = c("zip" = "GEOID_ZCTA5_20")
-  )
+  ) %>%
+  mutate(zip = as.character(zip))
 
 remove(cbsa_csa)
 

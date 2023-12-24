@@ -1,0 +1,10 @@
+measure_name,measure_id
+Central Line Associated Bloodstream Infection (ICU + select Wards),HAI_1_SIR
+Catheter Associated Urinary Tract Infections (ICU + select Wards),HAI_2_SIR
+SSI - Colon Surgery,HAI_3_SIR
+SSI - Abdominal Hysterectomy,HAI_4_SIR
+MRSA Bacteremia,HAI_5_SIR
+Clostridium Difficile (C.Diff),HAI_6_SIR
+Nurse communication - star rating,H_COMP_1_STAR_RATING
+Doctor communication - star rating,H_COMP_2_STAR_RATING
+Staff responsiveness - star rating,H_COMP_3_STAR_RATING
