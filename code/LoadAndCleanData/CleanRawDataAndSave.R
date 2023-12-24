@@ -468,7 +468,7 @@ unplanned_hospital_visits_exempt %>%
 #####*
 
 
-##### create a table to convert zip to cbsa                                                                             #####
+##### create a table to convert zip to cbsa and zip to urban area                                                                             #####
 #####*
 
 zip_cbsa <- read_excel("data/raw/ZIP_CBSA_092023.xlsx", sheet = "Export Worksheet") %>%
@@ -492,6 +492,23 @@ zip_cbsa <- zip_cbsa %>%
       filter(state_name == "California") %>%
       distinct(cbsa_code, cbsa_title),
     by = c("cbsa" = "cbsa_code")
+  ) %>%
+  left_join(
+    read_excel("data/raw/2020_Census_ua_list_all.xlsx") %>%
+      filter(str_detect(NAME, ", CA")) %>%
+      select(UACE, NAME) %>%
+      rename(ua_title = NAME, urban_area = UACE) %>%
+      left_join(
+        read_delim("https://www2.census.gov/geo/docs/maps-data/data/rel2020/ua/tab20_ua20_zcta520_natl.txt") %>%
+          filter(str_detect(NAMELSAD_UA_20, ", CA")) %>%
+          group_by(GEOID_ZCTA5_20, GEOID_UA_20) %>%
+          arrange(desc(AREALAND_PART)) %>%
+          slice_head(n = 1) %>%
+          ungroup() %>%
+          select(GEOID_UA_20, GEOID_ZCTA5_20),
+        by = c("urban_area" = "GEOID_UA_20")
+      ),
+    by = c("zip" = "GEOID_ZCTA5_20")
   )
 
 remove(cbsa_csa)

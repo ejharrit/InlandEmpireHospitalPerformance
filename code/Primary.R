@@ -34,6 +34,7 @@ library(readxl)
 library(httr2)
 library(skimr)
 library(beepr)
+library(sf)
 
 ##### --
 #####*
@@ -55,6 +56,10 @@ library(beepr)
 ### loading, cleaning, and preparing the data for analysis
 LoadData <- 1
 CleanRawDataAndSave <- 1
+  ### preparing for data analysis
+{
+  
+}
 
 ##### --
 #####*
