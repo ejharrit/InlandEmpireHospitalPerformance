@@ -1,0 +1,24 @@
+---
+title: "HospitalQualityHypothesisTestingData"
+author: "Eddy Harrity"
+date: "2023-12-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+## The Data
+```{r load the data, include=FALSE}
+hospital_care_data <- read_csv("data/final/hospitalQualityHypothesisTesting/hypothesis_data.csv")
+measures_table <- read_csv("data/final/hospitalQualityHypothesisTesting/measures_table.csv")
+```
+
+### Description of the Data
+The data used in this analysis is collected from the Centers for Medicare and Medicaid services at https://data.cms.gov/. Census data was also collected to assign zipcodes to Census Bureau Statistical Areas(CBSAs) and Urban Areas(UAs). The particular datasets used for this specific analysis performing hypothesis tests on differences in outcomes between the Inland Empire and the rest of California include hospital-level results for healthcare-associated infections measures, hospital-level results for the Hospital Consumer Assessment of Healthcare Providers(HCAHP) and Systems, and hospital-level results for process of care measures. 
+
+Specific measures on nurse and doctor communication as well as staff responsiveness were collected from the HCAHP survey data. The measure of emergency department volume was collected from the process of care measures. All measures of healthcare-associated infections were collected. The data was limited to hospitals in California. Hospitals assigned by the Census Bureau to the CBSA of "Riverside-San Bernardino-Ontario, CA" and to the UAs of "Riverside--San Bernardino, CA", "Los Angeles--Long Beach--Anaheim, CA", "Victorville--Hesperia--Apple Valley, CA", "Indio--Palm Desert--Palm Springs, CA", or "Temecula--Murrieta--Menifee, CA" were labeled as being in the Inland Empire of Southern California. 
+
+This resulted in a dataset of 340 hospitals covering 11 variables of interest with 8 other informative variables (e.g. facility name, zip_code). 27 hospitals are labeled as being in the Inland Empire.
+
