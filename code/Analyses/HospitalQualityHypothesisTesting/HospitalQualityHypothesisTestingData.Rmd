@@ -2,12 +2,16 @@
 title: "Comparing Healthcare Measures of Hospitals in the Inland Empire and Elsewhere in California"
 author: "Eddy Harrity"
 date: "2023-12-25"
-output: html_document
+output: 
+  prettydoc::html_pretty:
+    theme: cayman
+    toc: yes
+  
 ---
 
 ```{r setup, include=FALSE}
 ### Set knitr options
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, include = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ### load packages
 library(rcartocolor)
 library(wesanderson)
@@ -22,23 +26,78 @@ library(gt)
 ```
 
 ## Introduction/Summary
-This document will use chi-squared testing to perform hypothesis testing to determine if hospitals in Southern California's Inland Empire achieve levels of care that are significantly different from hospitals elsewhere in California, whether that difference be worse or better. 
+This document will use chi-squared testing to perform hypothesis tests to determine if hospitals in Southern California's Inland Empire achieve levels of care that are significantly different from hospitals elsewhere in California, whether that difference be worse or better. 
 
 We describe the data which is collected from the Centers for Medicare and Medicaid services and covers measures of healthcare-associated infections, patient surveys on the communication provided by doctors and nurses and overall staff responsiveness at the hospitals, and also the volume of patients experienced by the hospitals' emergency departments. 
 
-Exploratory graphs and contingency tables are also developed from the data to show difference between hospitals in the Inland Empire and elsewhere in California on these measure and what the values would be expected to be if there were no relationship. 
+Exploratory graphs and contingency tables are also developed from the data to show differences between hospitals in the Inland Empire and elsewhere in California on these measures and what the values would be expected to be if there were no relationship. 
 
 Finally chi-squared hypothesis testing is done. Because some of the expected frequencies of some of the variables are less than five, null distributions are generated and used to perform the hypothesis testing. The extremity of our observed statistics are also visualized in comparison to these null distributions. 
 
-Our findings conclude that missing values are correlated to our variables of interest and thus finding data with fewer missing values or determining a reliable method to impute values for the missing data in future research would be valuable. With the data on hand though, across most of our variables we don't find enough evidence to reject the null hypothesis that hospitals in the Inland Empire provide levels of care that are significantly different from the level of care provided elsewhere in California. 
+Our findings conclude that missing values are correlated to our variables of interest and thus finding data with fewer missing values or determining a reliable method to impute values for the missing data in future research would be valuable. With the data on hand though, across most of our variables we don't find enough evidence to reject the null hypothesis that hospitals in the Inland Empire provide levels of care that are not significantly different from the level of care provided elsewhere in California. 
 
 We do find enough evidence to reject the hypothesis that hospitals in the Inland Empire do not experience volumes of patients in their emergency departments that are different than the volumes of patients experienced by emergency departments at hospitals elsewhere in California. The data suggests that hospitals in the Inland Empire experience significantly higher volumes of patients in their emergency departments than hospitals elsewhere in California.
 
 ## Research Question
+Before we do anything else we want to establish a research question we will try to answer. This will involve coming up with a hypothesis or hypotheses we can test. We will also want to determine a threshold of evidence we would consider as enough to reject our hypothesis.
 
+Our predetermined threshold will be <0.05, so we will be looking for p-values to be less 0.05 for us to conlude that we have enough evidence to reject our null hypotheses.
+
+The research question we are trying to answer is, do hospitals in Southern California's Inland Empire provide a quality of care that is different from the quality of care provided by hospitals elsewhere in California? This means we are interested in whether the quality of care provided by hospitals in the Inland Empire is better or worse than the quality of care provided by hospitals elsewhere in California, or this will be a two-sided hypothesis test, rather than a one-sided hypothesis test.
+
+In this particular analysis we will be using data that will allow us to test the following ten pairs of null and alternative hypotheses.
+
+$H_\theta$ : Hospitals in the Inland Empire achieve the same level of Central Line Associated Bloodstream Infections compared to the national average as hospitals elsewhere in California.
+
+$H_\alpha$ : Hospitals in the Inland Empire achieve a different level of Central Line Associated Bloodstream Infections compared to the national average than hospitals elsewhere in California.
+	
+
+$H_\theta$ : Hospitals in the Inland Empire achieve the same level of Catheter Associated Urinary Tract Infections compared to the national average as hospitals elsewhere in California.
+
+$H_\alpha$ : Hospitals in the Inland Empire achieve a different level of Catheter Associated Urinary Tract Infections compared to the national average than hospitals elsewhere in California.
+	
+
+$H_\theta$ : Hospitals in the Inland Empire achieve the same level of surgery site infections from Colon Surgery compared to the national average as hospitals elsewhere in California.
+
+$H_\alpha$ : Hospitals in the Inland Empire achieve a different level of surgery site infections from Colon Surgery compared to the national average than hospitals elsewhere in California.
+	
+
+$H_\theta$ : Hospitals in the Inland Empire achieve the same level of surgery site infections from Abdominal Hysterectomy compared to the national average as hospitals elsewhere in California.
+
+$H_\alpha$ : Hospitals in the Inland Empire achieve a different level of surgery site infections from Abdominal Hysterectomy compared to the national average than hospitals elsewhere in California.
+	
+
+$H_\theta$ : Hospitals in the Inland Empire achieve the same level of Methicillin-resistant bloodstream infections compared to the national average as hospitals elsewhere in California.
+
+$H_\alpha$ : Hospitals in the Inland Empire achieve a different level of Methicillin-resistant bloodstream infections compared to the national average than hospitals elsewhere in California.
+	
+
+$H_\theta$ : Hospitals in the Inland Empire achieve the same level of intestinal infections compared to the national average as hospitals elsewhere in California.
+
+$H_\alpha$ : Hospitals in the Inland Empire achieve a different level of intestinal infections compared to the national average than hospitals elsewhere in California.
+	
+
+$H_\theta$ : Patients participating in the HCAHPS survey for hospitals in the Inland Empire report an average level of satisfaction with communication from nurses that is the same as patients participating in the HCAHPS survey for hospitals elsewhere in California.
+
+$H_\alpha$ : Patients participating in the HCAHPS survey for hospitals in the Inland Empire report an average level of satisfaction with communication from nurses that is different from patients participating in the HCAHPS survey for hospitals elsewhere in California.
+	
+
+$H_\theta$ : Patients participating in the HCAHPS survey for hospitals in the Inland Empire report an average level of satisfaction with communication from doctors that is the same as patients participating in the HCAHPS survey for hospitals elsewhere in California.
+
+$H_\alpha$ : Patients participating in the HCAHPS survey for hospitals in the Inland Empire report an average level of satisfaction with communication from doctors that is different from patients participating in the HCAHPS survey for hospitals elsewhere in California.
+	
+
+$H_\theta$ : Patients participating in the HCAHPS survey for hospitals in the Inland Empire report an average level of satisfaction with staff responsiveness that is the same as patients participating in the HCAHPS survey for hospitals elsewhere in California.
+
+$H_\alpha$ : Patients participating in the HCAHPS survey for hospitals in the Inland Empire report an average level of satisfaction with staff responsiveness that is different from patients participating in the HCAHPS survey for hospitals elsewhere in California.
+	
+
+$H_\theta$ : Hospitals in the Inland Empire experience the same volumes of patients in their emergency departments relative to the national average as hospitals elsewhere in California.
+
+$H_\alpha$ : Hospitals in the Inland Empire experience the different volumes of patients in their emergency departments relative to the national average than hospitals elsewhere in California.
 
 ## The Data
-```{r load the data}
+```{r load the data, include=FALSE}
 ### load the data sets
 hospital_care_data <- read_csv("data/final/hospitalQualityHypothesisTesting/hypothesis_data.csv")
 measures_table <- read_csv("data/final/hospitalQualityHypothesisTesting/measures_table.csv")
@@ -47,7 +106,7 @@ measures_table <- read_csv("data/final/hospitalQualityHypothesisTesting/measures
 ### Description of the Data
 The data used in this analysis is collected from the Centers for Medicare and Medicaid Services(CMS) at https://data.cms.gov/. Census data was also collected to assign zipcodes to Census Bureau Statistical Areas(CBSAs) and Urban Areas(UAs). The particular datasets used for this specific analysis performing hypothesis tests on differences in outcomes between the Inland Empire and the rest of California include hospital-level results for healthcare-associated infections measures, hospital-level results for the Hospital Consumer Assessment of Healthcare Providers(HCAHP) and Systems, and hospital-level results for process of care measures. 
 
-Specific measures on nurse and doctor communication as well as staff responsiveness were collected from the HCAHP survey data. The measure of emergency department volume was collected from the process of care measures. All measures of healthcare-associated infections were collected. The data was limited to hospitals in California. Hospitals assigned by the Census Bureau to the CBSA of "Riverside-San Bernardino-Ontario, CA" and to the UAs of "Riverside--San Bernardino, CA", "Los Angeles--Long Beach--Anaheim, CA", "Victorville--Hesperia--Apple Valley, CA", "Indio--Palm Desert--Palm Springs, CA", or "Temecula--Murrieta--Menifee, CA" were labeled as being in the Inland Empire of Southern California. 
+Specific measures on nurse and doctor communication as well as staff responsiveness were collected from the HCAHP survey data. The measure of emergency department volume was collected from the process of care measures. All measures of healthcare-associated infections were collected. The data was limited to hospitals in California. Hospitals assigned by the Census Bureau to the CBSA of "Riverside-San Bernardino-Ontario, CA" and also to the UAs of "Riverside--San Bernardino, CA", "Los Angeles--Long Beach--Anaheim, CA", "Victorville--Hesperia--Apple Valley, CA", "Indio--Palm Desert--Palm Springs, CA", or "Temecula--Murrieta--Menifee, CA" were labeled as being in the Inland Empire of Southern California. 
 
 This resulted in a dataset of 340 hospitals covering 11 variables of interest with 8 other informative variables (e.g. facility name, zip_code). 27 hospitals are labeled as being in the Inland Empire. A table was also maintained of the measured fields and their names to make it easier to understand
 
@@ -182,7 +241,7 @@ map(exp_columns, ~ hospital_care_data %>%
 ## Hypothesis Testing
 Now we move on to the actual analysis of our data using chi-squared ($\chi^2$) hypothesis testing.
 
-```{r custom functions}
+```{r custom functions, include=FALSE}
 ### a custom function to calculate the observed chi-squared statistic of our variable of interest (var_name)
 ### and the inland_empire variable
 calculate_observed_statistic <- function(x, var_name){
@@ -344,7 +403,7 @@ One of the amazing features of the `infer` package is that it allows us to visua
 First, let's visualize the p-value of emergency department volumes. The graph below is from our distributions and observed statistic for the data where missing values were removed. The grey bars graph the simulation-based null distribution while the curve graphs the Theoretical Chi-Square distribution. The red bar is our observed test statistic. The graph below illustrates very clearly that it is very unlikely (although still possible) that if our null hypothesis were true, we would observe a test statistic as significant as the one observed from our data. This visualization should make it very clear that we have ample evidence to believe that it is highly likely that hospitals in the Inland Empire experience higher volumes of patients in their emergency departments for a reason other than random variance.
 
 
-```{r p-value visualization}
+```{r p-value visualization emergency department}
 random_distribution_missing[["emergency_department_volume"]] %>%
    visualize(method = "both") + 
   shade_p_value(observed_statistics_missing[["emergency_department_volume"]],
@@ -356,7 +415,7 @@ random_distribution_missing[["emergency_department_volume"]] %>%
 
 Now, let's visualize the null-distributions and our observed test-statistic for our measure of healthcare-associated infections around the site of colon surgeries. In our contingencies table we saw that hospitals in the Inland Empire performed better than the national average more often than would be expected, but not by much. This visualization helps confirm that while the bulk of test statistics from our null-distributions and theoretical distribution would not be as extreme as the one we observed, we still see a fair amount of our null distribution being at least as extreme as our observed statistic. This suggests that while it is possible that Inland Empire hospitals perform better than the national average more often than hospitals elsewhere in California on these measure, we don't have enough evidence to confidently believe this isn't due to random variance. Especially considering our p-value did not meet our pre-determined threshold, we fail to reject the null hypothesis that hospitals in the Inland Empire provide a significantly different level of care on this measure than hospitals located elsewhere in California. However, someone who is particularly prone to action and requires a lower threshold of evidence might look at this same data and determine that hospitals elsewhere in California might want to consider looking to hospitals in the Inland Empire for practices that help reduce healthcare-associated infections due to colon surgery. 
 
-```{r p-value visualization}
+```{r p-value visualization colon surgeries}
 random_distribution_missing[["HAI_3_SIR"]] %>%
    visualize(method = "both") + 
   shade_p_value(observed_statistics_missing[["HAI_3_SIR"]],
