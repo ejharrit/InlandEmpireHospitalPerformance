@@ -1,24 +1,372 @@
 ---
-title: "HospitalQualityHypothesisTestingData"
+title: "Comparing Healthcare Measures of Hospitals in the Inland Empire and Elsewhere in California"
 author: "Eddy Harrity"
 date: "2023-12-25"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+### Set knitr options
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, include = FALSE)
+### load packages
+library(rcartocolor)
+library(wesanderson)
+library(tidyverse)
+library(DescTools)
+library(ggthemes)
+library(forcats)
+library(ghibli)
+library(skimr)
+library(infer)
+library(gt)
 ```
 
+## Introduction/Summary
+This document will use chi-squared testing to perform hypothesis testing to determine if hospitals in Southern California's Inland Empire achieve levels of care that are significantly different from hospitals elsewhere in California, whether that difference be worse or better. 
+
+We describe the data which is collected from the Centers for Medicare and Medicaid services and covers measures of healthcare-associated infections, patient surveys on the communication provided by doctors and nurses and overall staff responsiveness at the hospitals, and also the volume of patients experienced by the hospitals' emergency departments. 
+
+Exploratory graphs and contingency tables are also developed from the data to show difference between hospitals in the Inland Empire and elsewhere in California on these measure and what the values would be expected to be if there were no relationship. 
+
+Finally chi-squared hypothesis testing is done. Because some of the expected frequencies of some of the variables are less than five, null distributions are generated and used to perform the hypothesis testing. The extremity of our observed statistics are also visualized in comparison to these null distributions. 
+
+Our findings conclude that missing values are correlated to our variables of interest and thus finding data with fewer missing values or determining a reliable method to impute values for the missing data in future research would be valuable. With the data on hand though, across most of our variables we don't find enough evidence to reject the null hypothesis that hospitals in the Inland Empire provide levels of care that are significantly different from the level of care provided elsewhere in California. 
+
+We do find enough evidence to reject the hypothesis that hospitals in the Inland Empire do not experience volumes of patients in their emergency departments that are different than the volumes of patients experienced by emergency departments at hospitals elsewhere in California. The data suggests that hospitals in the Inland Empire experience significantly higher volumes of patients in their emergency departments than hospitals elsewhere in California.
+
+## Research Question
+
+
 ## The Data
-```{r load the data, include=FALSE}
+```{r load the data}
+### load the data sets
 hospital_care_data <- read_csv("data/final/hospitalQualityHypothesisTesting/hypothesis_data.csv")
 measures_table <- read_csv("data/final/hospitalQualityHypothesisTesting/measures_table.csv")
 ```
 
 ### Description of the Data
-The data used in this analysis is collected from the Centers for Medicare and Medicaid services at https://data.cms.gov/. Census data was also collected to assign zipcodes to Census Bureau Statistical Areas(CBSAs) and Urban Areas(UAs). The particular datasets used for this specific analysis performing hypothesis tests on differences in outcomes between the Inland Empire and the rest of California include hospital-level results for healthcare-associated infections measures, hospital-level results for the Hospital Consumer Assessment of Healthcare Providers(HCAHP) and Systems, and hospital-level results for process of care measures. 
+The data used in this analysis is collected from the Centers for Medicare and Medicaid Services(CMS) at https://data.cms.gov/. Census data was also collected to assign zipcodes to Census Bureau Statistical Areas(CBSAs) and Urban Areas(UAs). The particular datasets used for this specific analysis performing hypothesis tests on differences in outcomes between the Inland Empire and the rest of California include hospital-level results for healthcare-associated infections measures, hospital-level results for the Hospital Consumer Assessment of Healthcare Providers(HCAHP) and Systems, and hospital-level results for process of care measures. 
 
 Specific measures on nurse and doctor communication as well as staff responsiveness were collected from the HCAHP survey data. The measure of emergency department volume was collected from the process of care measures. All measures of healthcare-associated infections were collected. The data was limited to hospitals in California. Hospitals assigned by the Census Bureau to the CBSA of "Riverside-San Bernardino-Ontario, CA" and to the UAs of "Riverside--San Bernardino, CA", "Los Angeles--Long Beach--Anaheim, CA", "Victorville--Hesperia--Apple Valley, CA", "Indio--Palm Desert--Palm Springs, CA", or "Temecula--Murrieta--Menifee, CA" were labeled as being in the Inland Empire of Southern California. 
 
-This resulted in a dataset of 340 hospitals covering 11 variables of interest with 8 other informative variables (e.g. facility name, zip_code). 27 hospitals are labeled as being in the Inland Empire.
+This resulted in a dataset of 340 hospitals covering 11 variables of interest with 8 other informative variables (e.g. facility name, zip_code). 27 hospitals are labeled as being in the Inland Empire. A table was also maintained of the measured fields and their names to make it easier to understand
 
+```{r glimpse of the data}
+### get an overview of the data
+glimpse(hospital_care_data)
+
+measures_table %>% 
+  gt()
+```
+
+### Exploratory Analysis of the data
+#### Missing values
+The most significant challenge with the current dataset is missing values in our data. Data that is unreported for whatever reason. Unfortunately, the data pulled from CMS is currently the best that has been found to work with by this analyst. As such, it will be the data we work with. Still we can observe from the data below that incomplete records are significant in our dataset. As such we will report results with the missing records removed from the analysis, as well as results with them categorized as "missing".
+
+```{r skim the data}
+### get an overview of the data and view missing values
+skim(hospital_care_data)
+
+```
+
+#### Exploratory Graphs
+Now let's begin taking an exploratory look at our data through graphs. Keeping in mind our research question of whether or not hospitals located in the Inland Empire provide care that results in a different level of healthcare outcomes that other hospitals in California. 
+
+The graph below indicates the number of hospitals that perform above, below, and at the national benchmark for various measure of healthcare-associated infections(the names of the measures below can be found in the table provided above of measure_names and measure_ids). At first glance there don't seem to be any dramatic differences. There is a much lower total of hospitals located in the Inland Empire compared to those located in the rest of the state, which is to be expected.
+
+```{r exploratory graphs healthcare-associated infections}
+hospital_care_data %>%
+  select(HAI_1_SIR:HAI_6_SIR, inland_empire) %>%
+  pivot_longer(-inland_empire, names_to = "name", values_to = "value") %>%
+  drop_na() %>%
+  ggplot(aes(x = name, fill = value)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~inland_empire, labeller = labeller(inland_empire = 
+    c("no" = "Rest of California",
+      "yes" = "Inland Empire"))
+    )+
+  theme_few() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_fill_ghibli_d("LaputaMedium", direction = -1) +
+  labs(
+    title     = "California Hospitals' Performance Compared to National Benchmark",
+    subtitle  = "Healthcare-associated Infections",
+    caption   = "data collected from CMS",
+    y         = "proportion",
+    x         = ""
+  ) 
+
+```
+
+The following graph also compares hospital performance in California, this time based on patient surveys of communication from Doctors and nurses and staff responsiveness. Here again, there doesn't currently appear to be any dramatic difference between performance of hospitals in the Inland Empire and hospitals in the rest of California.
+
+```{r exploratory graphs hcahps survey}
+hospital_care_data %>%
+  select(H_COMP_1_STAR_RATING:H_COMP_3_STAR_RATING, inland_empire) %>%
+  pivot_longer(-inland_empire, names_to = "name", values_to = "value") %>%
+  drop_na() %>%
+  ggplot(aes(x = name, fill = value)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~inland_empire) +
+  theme_few() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = rel(0.5))) +
+  xlab("") +
+  scale_fill_ghibli_d("LaputaMedium", direction = -1) +
+  labs(
+    title     = "California Hospitals' Performance Compared to National Benchmark",
+    subtitle  = "HCAHP Patient Survey",
+    caption   = "data collected from CMS",
+    y         = "proportion",
+    x         = ""
+  )
+
+```
+
+Finally, the graph below compares the levels of emergency department volume at hospitals in the Inland Empire and the rest of California. We can see here that hospitals in the Inland Empire experience "high" and particularly "very high" volumes of patients in their emergency departments at what appears to be a significantly greater rate than hospitals in the rest of California.
+
+```{r exploratory graphs emergency room volum}
+hospital_care_data %>%
+  select(emergency_department_volume, inland_empire) %>%
+  mutate(emergency_department_volume = fct_relevel(emergency_department_volume, 
+            "low", "medium", "high", "very high")) %>%
+  drop_na() %>%
+  ggplot(aes(x = inland_empire, fill = emergency_department_volume)) +
+  geom_bar(position = "fill") +
+  theme_few() +
+  xlab("") +
+  scale_fill_manual(values = wes_palette("Chevalier1")) +
+  labs(
+    title     = "California Hospitals' Performance Compared to National Benchmark",
+    caption   = "data collected from CMS",
+    y         = "proportion",
+    x         = "Inland Empire"
+  )
+
+```
+
+#### Contingency Tables
+In this analysis we will be using chi-squared hypothesis testing to determine if there is a difference in healthcare outcomes between hospitals in the Inland Empire of Southern California and hospitals in the rest of California. for this we will want to see contingency tables of our data measure we plan to test. we do that below.
+
+First we look at the values we observe in our data. The result below is a list of contingency comparing our measures of interest across hospitals in the Inland Empire and not in the Inland Empire. We notice some slight differences between the share of hospitals in the Inland Empire and hospitals in the rest of California spread across these variables.
+
+```{r contingency tables observed values}
+### set our dependent columns
+exp_columns <- names(hospital_care_data)[2:11]
+
+### map over the dependent columns and make a contingency table for each with the inland_empire variable
+map(exp_columns, ~ hospital_care_data %>%
+  select(all_of(c("inland_empire", .x))) %>%
+  table() )
+
+```
+
+The list of tables below shows the expected frequencies. It is important to note here that some of our expected frequencies in these tables are less than 5, meaning that in order to use chi-squared testing we will want to simulated the sampling distribution of the test statistic. Still seeing the expected frequencies we can see where the values in the observed frequencies are most different from what we would expect to see if there were no relation between hospitals in the Inland Empire and and healthcare outcomes in the measures we have available to us from CMS.
+
+```{r contingency tables expected values}
+### create a custom function that will create a table of expected frequencies of our dependent variables and our
+### inland_empire variable
+expected_frequencies <- function(x, variable) {
+  x %>%
+    select(inland_empire, all_of({{ variable }})) %>%
+    drop_na() %>%
+    table() %>%
+    ExpFreq("abs")
+}
+
+### map over our dependent variables to get a table of expected frquencies with the inland_empire variable
+map(exp_columns, ~ hospital_care_data %>%
+  expected_frequencies(.x))
+
+```
+
+## Hypothesis Testing
+Now we move on to the actual analysis of our data using chi-squared ($\chi^2$) hypothesis testing.
+
+```{r custom functions}
+### a custom function to calculate the observed chi-squared statistic of our variable of interest (var_name)
+### and the inland_empire variable
+calculate_observed_statistic <- function(x, var_name){
+  specify(x, formula = eval(parse(text = paste0(var_name, "~", "inland_empire")))) %>% 
+    hypothesize(null = "independence") %>%
+    calculate(stat = "Chisq")
+}
+
+### a custom function to calculate a distribution of chi-squared statistics randomly assigning values of our variable 
+### of interest (var_name) with values of our inland_empire variable, thus breaking any relationship that may be present
+### in the observed data
+random_distribution <- function(x, var_name){
+  specify(x, formula = eval(parse(text = paste0(var_name, "~", "inland_empire")))) %>%
+    hypothesize(null = "independence") %>%
+    generate(reps = 1000, type = "permute") %>%
+    calculate(stat = "Chisq")
+}
+
+### a custom function that creates a distribution of our variable of interest (var_name) and our inland_empire variable
+### based on an assumption of a chi-squared distribution of the data
+chi_squared_distribution <- function(x, var_name){
+  specify(x, formula = eval(parse(text = paste0(var_name, "~", "inland_empire")))) %>%
+    assume(distribution = "Chisq")
+}
+
+
+```
+
+### Calculating Chi-squared Test Statistic of Observed data
+The first thing we will want to do in our hypothesis testing is calculate the observed $\chi^2$ statistic for our variables. The lists below calculate them both for the data with the missing values, and with a new data set recoding missing observations as an `unknown` category.
+
+```{r calculate observed statistics}
+### create a new data frame that replaces all NA values with "unknown", creating a new category in any categorical
+### variables that retains missing values for observation.
+hospital_care_data_unkown <- hospital_care_data %>%
+  mutate(across(everything(), \(x) replace_na(x, "unkown")))
+  
+### set the variables to map over in our data with missing values
+measures_missing <- c("HAI_1_SIR",  "HAI_2_SIR",  "HAI_3_SIR",
+              "HAI_5_SIR",                "H_COMP_1_STAR_RATING",     
+              "H_COMP_2_STAR_RATING",     "H_COMP_3_STAR_RATING",     
+              "emergency_department_volume")
+
+### set the variables to map over in our data categorizing missing values as "unkown" and retaining them for observation
+measures_unkown <- c(measures_missing[1:3], "HAI_4_SIR", measures_missing[4], "HAI_6_SIR", measures_missing[5:8])
+
+### create a list of our observed chi-squared statistitcs in the data with missing values
+observed_statistics_missing <- rlist::list.append(
+  ### map over the values in our measures_missing variable
+  map(measures_missing, calculate_observed_statistic, x = hospital_care_data),
+  ### variables with only 2 unique categories need a success argument provided so we calculate the chi-squared
+  ### statistic for these variables individually and append them to the list with our other variables
+  specify(hospital_care_data, formula = HAI_4_SIR ~ inland_empire, success = "No Different than National Benchmark") %>% 
+    hypothesize(null = "independence") %>%
+    calculate(stat = "Chisq"),
+  specify(hospital_care_data, formula = HAI_6_SIR ~ inland_empire, success = "Better than the National Benchmark") %>% 
+    hypothesize(null = "independence") %>%
+    calculate(stat = "Chisq")
+)
+
+### add names to the elements of our list
+names(observed_statistics_missing) <- c(measures_missing, "HAI_4_SIR", "HAI_6_SIR")
+
+### reorder the list so the results come in the same order as our variables in the data frame
+observed_statistics_missing <- observed_statistics_missing[measures_unkown]
+
+### create a list of our observed chi-squared statistitcs in the data where we categorize missing values as "unknown"
+observed_statistics_unknown <- map(measures_unkown, calculate_observed_statistic, x = hospital_care_data_unkown)
+
+### add names to the elements of the list
+names(observed_statistics_unknown) <- c(measures_unkown)
+
+### print our lists to see them
+observed_statistics_missing
+
+observed_statistics_unknown
+
+```
+### Calculate Null-distributions
+The next step in our hypothesis testing will be to generate null-based distributions. We can do this randomly or assuming theory based distributions. We will run both a random distribution and a distribution that assumes a $\chi^2$ distribution for both datasets. We print only the lists of the $\chi^2$ distribution below.
+
+```{r generating distributions}
+### create distributions based on random distributions and calculate the chi-squared value for these distributions on our
+### data with missing values
+random_distribution_missing <- rlist::list.append(
+  map(measures_missing, random_distribution, x = hospital_care_data),
+  specify(hospital_care_data, formula = HAI_4_SIR ~ inland_empire, success = "No Different than National Benchmark") %>%
+    hypothesize(null = "independence") %>%
+    generate(reps = 1000, type = "permute") %>%
+    calculate(stat = "Chisq"),
+  specify(hospital_care_data, formula = HAI_6_SIR ~ inland_empire, success = "No Different than National Benchmark") %>%
+    hypothesize(null = "independence") %>%
+    generate(reps = 1000, type = "permute") %>%
+    calculate(stat = "Chisq")
+)
+
+### add names to our list
+names(random_distribution_missing) <- c(measures_missing, "HAI_4_SIR", "HAI_6_SIR")
+
+### reorder our list so the order of elements match the order of the columns in the data set
+random_distribution_missing <- random_distribution_missing[measures_unkown]
+
+### create distributions based on a chi-squared distribution and calculate the chi-squared value for these distributions on
+### our data with missing values
+chisq_distribution_missing <- rlist::list.append(
+  map(measures_missing, chi_squared_distribution, x = hospital_care_data),
+  specify(hospital_care_data, formula = HAI_4_SIR ~ inland_empire, success = "No Different than National Benchmark") %>%
+    assume(distribution = "Chisq"),
+  specify(hospital_care_data, formula = HAI_6_SIR ~ inland_empire, success = "No Different than National Benchmark") %>%
+    assume(distribution = "Chisq")
+)
+
+### add names to our list
+names(chisq_distribution_missing) <- c(measures_missing, "HAI_4_SIR", "HAI_6_SIR")
+
+### reorder the list so the elements in our list are in the same order as the columns in the data set
+chisq_distribution_missing <- chisq_distribution_missing[measures_unkown]
+
+### create lists of the same distributions and name them, but for the data where we recategorize missing
+### values
+random_distribution_unkown <- map(measures_unkown, random_distribution, x = hospital_care_data_unkown)
+names(random_distribution_unkown) <- measures_unkown
+
+chisq_distribution_unkown <- map(measures_unkown, chi_squared_distribution, x = hospital_care_data_unkown)
+names(chisq_distribution_unkown) <- measures_unkown
+
+### print the chi-squared lists
+chisq_distribution_missing
+chisq_distribution_unkown
+
+```
+### Calculating the P-values
+Now that we have these distributions, we can calculate the p-values for variables based on the random distributions (remember that some of our variables had expected frequencies where some unique categories had fewer than 5).
+
+The table below indicates that the variation we see between the Inland Empire and the rest of California in most of these variables does not meet the commonly used standards of statistical significance. Thus, for most of these variables, we would not reject the null hypothesis that there is no difference between the performance of hospitals in the Inland Empire and elsewhere in California. However, we do find that in the dataset where we categorize missing values as `unkown` some of these variables to become statistically significant, suggesting that unknown values are correlated with our `inland_empire` variable. Further research for data without missing variables, or maybe finding a reliable method to impute missing values may be of significant value for our research question.
+
+We do, however, find in both data sets that the p-value for the relationship between our `inland_empire` variable and the volume of patients experienced by hospitals does meet the threshold we set for statistical significance. This suggests that the difference we observed of hospitals located in the Inland Empire of Southern California experience high volumes of patients in their emergency departments more often than hospitals located elsewhere in California is not due to random variation and there is in fact a meaningful relationship between those two variables. Further research may want to dig in and find out what might be causing hospitals in the Inland Empire to experience `high` and `very high` volumes of patients in their emergency departments more often than hospitals in other parts of California, and work with their surrounding communities to reduce those emergencies and/or be as prepared as possible to handle them.
+
+```{r calculating p-values}
+### create a dataframe of our calculated p-values and the measure they correspond to
+random_dist_pvalues <- bind_cols(
+  ### add a column for the measure
+  measure = measures_unkown,
+  ### map over our data with missing values
+  p_value_missing = map2_dfr(random_distribution_missing, observed_statistics_missing, 
+                             get_p_value, direction = "two-sided") %>% pull(p_value),
+  ### map over our data with missing values categorized as "unknown"
+  p_value_unknown = map2_dfr(random_distribution_unkown, observed_statistics_unknown, 
+                             get_p_value, direction = "two-sided") %>% pull(p_value)
+)
+
+random_dist_pvalues %>%
+  gt()
+
+```
+#### Visuialize our results
+One of the amazing features of the `infer` package is that it allows us to visualize the null distibution and the p-value of our observed test statistic to get a better idea of how much of an outlier our observed data is assuming the null hypothesis. For this analysis we will only observe two of our p-values, the one for the `emergency_department_volume` variable, and the one for the `HAI_3_SIR` variable or the measure of surgical site infections from colon surgery.
+
+First, let's visualize the p-value of emergency department volumes. The graph below is from our distributions and observed statistic for the data where missing values were removed. The grey bars graph the simulation-based null distribution while the curve graphs the Theoretical Chi-Square distribution. The red bar is our observed test statistic. The graph below illustrates very clearly that it is very unlikely (although still possible) that if our null hypothesis were true, we would observe a test statistic as significant as the one observed from our data. This visualization should make it very clear that we have ample evidence to believe that it is highly likely that hospitals in the Inland Empire experience higher volumes of patients in their emergency departments for a reason other than random variance.
+
+
+```{r p-value visualization}
+random_distribution_missing[["emergency_department_volume"]] %>%
+   visualize(method = "both") + 
+  shade_p_value(observed_statistics_missing[["emergency_department_volume"]],
+                direction = "two-sided") +
+  theme_few()
+  
+
+```
+
+Now, let's visualize the null-distributions and our observed test-statistic for our measure of healthcare-associated infections around the site of colon surgeries. In our contingencies table we saw that hospitals in the Inland Empire performed better than the national average more often than would be expected, but not by much. This visualization helps confirm that while the bulk of test statistics from our null-distributions and theoretical distribution would not be as extreme as the one we observed, we still see a fair amount of our null distribution being at least as extreme as our observed statistic. This suggests that while it is possible that Inland Empire hospitals perform better than the national average more often than hospitals elsewhere in California on these measure, we don't have enough evidence to confidently believe this isn't due to random variance. Especially considering our p-value did not meet our pre-determined threshold, we fail to reject the null hypothesis that hospitals in the Inland Empire provide a significantly different level of care on this measure than hospitals located elsewhere in California. However, someone who is particularly prone to action and requires a lower threshold of evidence might look at this same data and determine that hospitals elsewhere in California might want to consider looking to hospitals in the Inland Empire for practices that help reduce healthcare-associated infections due to colon surgery. 
+
+```{r p-value visualization}
+random_distribution_missing[["HAI_3_SIR"]] %>%
+   visualize(method = "both") + 
+  shade_p_value(observed_statistics_missing[["HAI_3_SIR"]],
+                direction = "two-sided") +
+  theme_few()
+  
+
+```
+
+## Conclusion
+Throughout this analysis we have described our data and its source and performed an exploratory analysis on the data to visualize differences in the outcomes of care between hospitals in Southern California's Inland Empire and hospitals elsewhere in California. We made contingency tables of the observed values and expected frequencies of those values and determined that due to the amount of missing values in our variables we would conduct analysis on two data sets, one where the missing values were removed, and one where they were categorized as "unknown" to be included in the analysis. Finally, we performed chi-squared hypothesis tests across our variables to determine if observed differences in outcomes between hospitals in the Inland Empire and elsewhere in California might be due to meaningful difference in hospital performance or just a result of random variance. We developed null distributions due to some of our variables having expected frequencies of less than 5 (a key assumption of the chi-squared test). 
+
+Our results found that for most of the variables of interest, differences between performances at hospitals in the Inland Empire and hospitals elsewhere in California are not significant enough that we can be sure they are not due to random variation. Thus we fail to reject the null hypotheses that hospitals in the Inland Empire achieve outcomes of care different from those achieved by other hospitals in California. However, we do find enough evidence to reject the null hypothesis that emergency departments at hospitals in the Inland Empire experience the same volumes of patients as hospitals elsewhere in California. Evidence suggests that hospitals in the Inland Empire experience meaningfully higher volumes of patients in the emergency departments.
