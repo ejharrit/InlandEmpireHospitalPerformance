@@ -29,6 +29,7 @@ setwd("C:/Users/Owner/Desktop/Portfolio_Of_Projects/InlandEmpireHospitalPerforma
 ### files (e.g. adding packagename:: before the individual function call if there is a redundancy)
 library(tidyverse)
 library(DescTools)
+library(RAQSAPI)
 library(stringr)
 library(janitor)
 library(readxl)
