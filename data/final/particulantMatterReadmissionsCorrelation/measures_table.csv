@@ -1,0 +1,6 @@
+measure_id,measure_name
+READM_30_AMI,Acute Myocardial Infarction (AMI) 30-Day Readmission Rate
+READM_30_CABG,Rate of readmission for CABG
+READM_30_COPD,Rate of readmission for chronic obstructive pulmonary disease (COPD) patients
+READM_30_HF,Heart failure (HF) 30-Day Readmission Rate
+READM_30_PN,Pneumonia (PN) 30-Day Readmission Rate
