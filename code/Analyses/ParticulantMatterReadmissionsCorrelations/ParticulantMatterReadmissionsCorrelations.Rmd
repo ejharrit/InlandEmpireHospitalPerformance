@@ -1,0 +1,308 @@
+---
+title: "Particulant Matter Measures and Hospital Readmissions Rates"
+author: "Eddy Harrity"
+date: "2023-12-29"
+output: 
+  prettydoc::html_pretty:
+    theme: tactile
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+### Set knitr options
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+### load packages
+library(workflowsets)
+library(rcartocolor)
+library(wesanderson)
+library(tidymodels)
+library(tidyverse)
+library(DescTools)
+library(ggthemes)
+library(forcats)
+library(ghibli)
+library(skimr)
+library(infer)
+library(gt)
+### load the data
+pm_readmissions_regression <- read_csv("data/final/particulantMatterReadmissionsCorrelation/pm_readmissions_regression.csv")
+measure_table <- read_csv("data/final/particulantMatterReadmissionsCorrelation/measures_table.csv")
+```
+
+##The Research Question
+In short our research question can be stated as, "Is there a correlation between the amount of particulant matter measured in the air and the rate of hospital readmissions for people who received treatment for respiratory and cardiac ailments?" That is the overall question of interest. The data and methodology we use will allow us to produce multiple research questions that are more precise. Our data consists of the readmissions rates for five treatments (Acute Myocardial Infarction (AMI) 30-Day Readmission Rate, Rate of readmission for CABG, Rate of readmission for chronic obstructive pulmonary disease (COPD) patients, Heart failure (HF) 30-Day Readmission Rate, and Pneumonia (PN) 30-Day Readmission Rate) and two measures of particulant matter (Carbon Monoxide and Lead PM2.5 LC). Both measures are for counties in California. For this analysis we will use a threshold of p<0.05 to determine statistical significance. We want check for correlation between each treatment-particulant matter pair, resulting in ten research questions or pairs of hypotheses to test.
+
+$H_\theta$ : There is no relationship between the amount of Lead PM 2.5 LC measured in the air and the 30-day readmission rate for acute myocardial infarction in California counties.
+
+$H_\alpha$ : There is a relationship between the amount of Lead PM 2.5 LC measured in the air and the 30-day readmission rate for acute myocardial infarction in California counties.
+	
+
+$H_\theta$ : There is no relationship between the amount of Lead PM 2.5 LC measured in the air and the rate of readmission for CABG in California counties.
+
+$H_\alpha$ : There is a relationship between the amount of Lead PM 2.5 LC measured in the air and the rate of readmission for CABG in California counties.
+	
+
+$H_\theta$ : There is no relationship between the amount of Lead PM 2.5 LC measured in the air and the rate of readmission for chronic obstructive pulmonary disease (COPD) patients in California counties.
+
+$H_\alpha$ : There is a relationship between the amount of Lead PM 2.5 LC measured in the air and the rate of readmission for chronic obstructive pulmonary disease (COPD) patients in California counties.
+	
+
+$H_\theta$ : There is no relationship between the amount of Lead PM 2.5 LC measured in the air and the Heart failure (HF) 30-Day readmission rate in California counties.
+
+$H_\alpha$ : There is a relationship between the amount of Lead PM 2.5 LC measured in the air and the Heart failure (HF) 30-Day readmission rate in California counties.
+	
+
+$H_\theta$ : There is no relationship between the amount of Lead PM 2.5 LC measured in the air and the pneumonia (PN) 30-day readmission rate in California counties.
+
+$H_\alpha$ : There is a relationship between the amount of Lead PM 2.5 LC measured in the air and the pneumonia (PN) 30-day readmission rate in California counties.
+	
+
+$H_\theta$ : There is no relationship between the amount of Carbon Monoxide measured in the air and the 30-day readmission rate for acute myocardial infarction in California counties.
+
+$H_\alpha$ : There is a relationship between the amount of Carbon Monoxide measured in the air and the 30-day readmission rate for acute myocardial infarction in California counties.
+	
+
+$H_\theta$ : There is no relationship between the amount of Carbon Monoxide measured in the air and the rate of readmission for CABG in California counties.
+
+$H_\alpha$ : There is a relationship between the amount of Carbon Monoxide measured in the air and the rate of readmission for CABG in California counties.
+	
+
+$H_\theta$ : There is no relationship between the amount of Carbon Monoxide measured in the air and the rate of readmission for chronic obstructive pulmonary disease (COPD) patients in California counties.
+
+$H_\alpha$ : There is a relationship between the amount of Carbon Monoxide measured in the air and the rate of readmission for chronic obstructive pulmonary disease (COPD) patients in California counties.
+	
+
+$H_\theta$ : There is no relationship between the amount of Carbon Monoxide measured in the air and the Heart failure (HF) 30-Day readmission rate in California counties.
+
+$H_\alpha$ : There is a relationship between the amount of Carbon Monoxide measured in the air and the Heart failure (HF) 30-Day readmission rate in California counties.
+	
+
+$H_\theta$ : There is no relationship between the amount of Carbon Monoxide measured in the air and the pneumonia (PN) 30-day readmission rate in California counties.
+
+$H_\alpha$ : There is a relationship between the amount of Carbon Monoxide measured in the air and the pneumonia (PN) 30-day readmission rate in California counties.
+
+##The Data
+###Description of the Data
+With our research question defined and threshold set let's take a look at the data we will be working with. The data used in this analysis was collected from two sources, the Unplanned Hospital Visits dataset provided by the Centers for Medicare and Medicaid services and annual summary data by county collected from the Environmental Protection Agency.
+
+The data from CMS took the average scores of the hospitals for each measure by county and weighted them by the denominator value for that hospital and measure. The EPA data provided multiple measures for some counties where there were multiple devices recording particulant matter in the county. In these cases the average was calculated and is used. The data from both the EPA and CMS are measures collected in the year 2022.
+
+This results in a data set of 56 rows across 7 variables used in the analysis and one variable used for information only (`county_parish`), although not all variables are available for every county. Missing values range from four in the READM_30_PN measure to 32 in the carbon_monoxide measure. In the pairing of particulant matter measures and readmissions rate measures, complete cases range from 15 complete observations to 24 complete observations with most being 22 complete observations. While small, sample sizes for the regressions still prove insightful. A table was also maintained of the measured fields of the hospital readmissions variables to make it easy to track which variable goes with which measure.
+
+```{r measures table}
+measure_table %>%
+  gt()
+```
+
+###Exploratory Analysis
+####Summary Statistics
+The variables we will be using in our regressions will be numeric. As such, it is a good idea to get summary statistics for each variable. We can easily see the quartiles and means for each variable below as well as missing values.
+```{r summary statistics}
+summary(pm_readmissions_regression)
+```
+
+####Exploratory Graphs
+We can also view boxplots of the numeric variables to get and idea for their spread as well.
+
+```{r boxplots}
+p1 <- pm_readmissions_regression %>%
+  select(-c("carbon_monoxide", "lead_pm2_5_lc")) %>%
+  pivot_longer(-county_parish, names_to = "name", values_to = "value") %>%
+  ggplot(aes(x = name, y = value), na.rm = TRUE) +
+  geom_boxplot(
+    outlier.color = "#B7D9F2FF",
+    color = "#C3AF97FF"
+  ) +
+  theme_few() +
+  xlab("") +
+  ylab("")
+
+p2 <- pm_readmissions_regression %>%
+  select(c("carbon_monoxide", county_parish)) %>%
+  pivot_longer(-county_parish, names_to = "name", values_to = "value") %>%
+  ggplot(aes(x = name, y = value), na.rm = TRUE) +
+  geom_boxplot(
+    outlier.color = "#B7D9F2FF",
+    color = "#C3AF97FF"
+  ) +
+  theme_few() +
+  xlab("") +
+  ylab("")
+  
+p3 <- pm_readmissions_regression %>%
+  select(c(lead_pm2_5_lc, county_parish)) %>%
+  pivot_longer(-county_parish, names_to = "name", values_to = "value") %>%
+  ggplot(aes(x = name, y = value), na.rm = TRUE) +
+  geom_boxplot(
+    outlier.color = "#B7D9F2FF",
+    color = "#C3AF97FF"
+  ) +
+  theme_few() +
+  xlab("") +
+  ylab("")
+
+ggarrange(
+  p1,
+  ggarrange(p2, p3, ncol = 2),
+  nrow = 2
+)
+
+```
+
+Finally, we can view density plots to get an idea of how well our data fits assumptions of normality.
+
+```{r density}
+p4 <- pm_readmissions_regression %>%
+  select(-c("carbon_monoxide", "lead_pm2_5_lc")) %>%
+  pivot_longer(-county_parish, names_to = "Measure", values_to = "value") %>%
+  ggplot(aes(x = value, fill = Measure, group = Measure), na.rm = TRUE) +
+  geom_density() +
+  scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
+  theme_few()
+
+p5 <- pm_readmissions_regression %>%
+  select(c("carbon_monoxide", county_parish)) %>%
+  pivot_longer(-county_parish, names_to = "Measure", values_to = "value") %>%
+  ggplot(aes(x = value, fill = Measure, group = Measure), na.rm = TRUE) +
+  geom_histogram() +
+  scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
+  theme_few()
+  
+p6 <- pm_readmissions_regression %>%
+  select(c(lead_pm2_5_lc, county_parish)) %>%
+  pivot_longer(-county_parish, names_to = "Measure", values_to = "value") %>%
+  ggplot(aes(x = value, fill = Measure, group = Measure), na.rm = TRUE) +
+  geom_histogram() +
+  scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
+  theme_few()
+
+ggarrange(
+  p4,
+  ggarrange(p5, p6, ncol = 2),
+  nrow = 2
+)
+
+```
+
+####More Normal Distributions
+We can see that most of our measures of hospital readmissions data follow patterns relatively close to normal distributions. The EPA measures, on the other hand do not. The `carbon_monoxide` variable is negatively skewed and the `lead_pm2_5_lc` variable is very positively skewed. Because of this we transform these variables to take the squared value of `carbon_monoxide` measures and the log transform of `lead_pm2_5_lc` measures. This helps greatly improve measures of skew and kurtosis in both variables to help them more closely resemble normal distributions. You can see the improvement below. 
+
+```{r density change}
+p7 <- pm_readmissions_regression %>%
+  select(-c("carbon_monoxide", "lead_pm2_5_lc")) %>%
+  pivot_longer(-county_parish, names_to = "Measure", values_to = "value") %>%
+  ggplot(aes(x = value, fill = Measure, group = Measure), na.rm = TRUE) +
+  geom_density() +
+  scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
+  theme_few()
+
+p8 <- pm_readmissions_regression %>%
+  select(c("carbon_monoxide", county_parish)) %>%
+  mutate(carbon_monoxide = carbon_monoxide^2) %>%
+  pivot_longer(-county_parish, names_to = "Measure", values_to = "value") %>%
+  ggplot(aes(x = value, fill = Measure, group = Measure), na.rm = TRUE) +
+  geom_histogram() +
+  scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
+  theme_few()
+  
+p9 <- pm_readmissions_regression %>%
+  select(c(lead_pm2_5_lc, county_parish)) %>%
+  mutate(lead_pm2_5_lc = log(lead_pm2_5_lc)) %>%
+  pivot_longer(-county_parish, names_to = "Measure", values_to = "value") %>%
+  ggplot(aes(x = value, fill = Measure, group = Measure), na.rm = TRUE) +
+  geom_histogram() +
+  scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
+  theme_few()
+
+ggarrange(
+  p7,
+  ggarrange(p8, p9, ncol = 2),
+  nrow = 2
+)
+
+```
+
+####Outliers
+This transformation also helps reduce the skew from the outlier in the `lead_pm2_5_lc` variable. The outlier comes from Imperial county which is also a heavy outlier in the 2018 data. This analyst hasn't found any explanation on why Imperial county would have such high measure of lead particulant matter. If the readers have any insight on this I would be greatly interested in learning. However, since the county is repeatedly an outlier when a broader timeline is taken into account, the observation is left in. Results will be reported with and without the observation.
+
+##Regression Analysis
+Using `purrr`'s `map` function makes it easy for us to use tidy models to get a regression model for each pair of independent and dependent variables we are interested in. The result is the table below.
+
+```{r map regressions}
+### set the model specifications
+model_spec <- linear_reg() %>%
+  set_engine("lm")
+
+### Define Dependent and Independent Variables:
+dependent_vars <- c("READM_30_AMI", "READM_30_CABG", "READM_30_COPD", "READM_30_HF", "READM_30_PN")
+independent_vars <- c("lead_pm2_5_lc", "carbon_monoxide")
+
+### Generate Model Formulas:
+models <- crossing(dependent_vars, independent_vars) %>% 
+  mutate(formula = map2(dependent_vars, independent_vars, ~ as.formula(paste0(.x, " ~ ", .y)))) %>%
+  pull(formula) %>%
+  ### Fit and Collect Models:
+  map( ~fit(
+    formula = .x, 
+    data = pm_readmissions_regression %>%
+      mutate(
+        carbon_monoxide = carbon_monoxide^2,
+        lead_pm2_5_lc = log(lead_pm2_5_lc)
+      ), 
+    model_spec
+  ))
+
+### Tidy Model Results:
+results <- models %>%
+  map(tidy) %>%
+  bind_rows() %>%
+  bind_cols(dependent_vars = rep(map_chr(1:10, ~models[[.x]]$preproc$y_var), times = 2))
+
+print(results)
+```
+
+The p-value is in scientific notation. We can make it easier to see by rounding the values to 8 digits. The table below shows us that none of the dependent-independent variable pairs meets our criteria for being significantly correlated. The correlation between  `lead_pm2_5_lc` and `READM_30_CABG` and the correlation between `lead_pm2_5_lc` and `READM_30_PN` come closest (it's important to remember that we performed a log transformation to the `lead_pm2_5_lc` variable). For illustration we will continue in the process with these two models, but again, none of the models, including these two, met our predetermined criteria for significance.
+
+```{r round p-values}
+results %>%
+  mutate(p.value = round(p.value, 8))
+
+```
+
+We can access the r-squared values for these models below. Looking at the r-squared values we can see that not much of the variation in our dependent variables is explained by correlation with our independent variables. Thus meaning, even if we had found the relationships significant, they would not have been particularly strong since the r-squared value is closer to 0 than to 1.
+
+```{r r-squared values}
+bind_rows(
+  glance(models[[2]]),
+glance(models[[10]])
+) %>%
+  bind_cols(dependent_var = c(
+    models[[2]]$preproc$y_var,
+    models[[10]]$preproc$y_var
+  )) %>%
+  select(dependent_var, everything())
+```
+
+Finally, let's visualize these models with regression lines added to scatter plots.
+
+```{r scatterplots}
+p10 <- pm_readmissions_regression %>%
+  select(lead_pm2_5_lc, READM_30_CABG) %>%
+  drop_na() %>%
+  ggplot(aes(y = READM_30_CABG, x = lead_pm2_5_lc)) +
+  geom_point(color = "#B7D9F2FF") +
+  geom_smooth(method = "lm", color = "#C3AF97FF")  +
+  scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
+  theme_few()
+
+p11 <- pm_readmissions_regression %>%
+  select(lead_pm2_5_lc, READM_30_PN) %>%
+  drop_na() %>%
+  ggplot(aes(y = READM_30_PN, x = lead_pm2_5_lc)) +
+  geom_point(color = "#B7D9F2FF") +
+  geom_smooth(method = "lm", color = "#C3AF97FF")  +
+  scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
+  theme_few()
+  
+
+```

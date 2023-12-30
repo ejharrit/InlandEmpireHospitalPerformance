@@ -58,7 +58,7 @@ names(histograms) <- names(
 
 ### most of the variables follow patterns relatively close to normal distributions. Two should be transformed to better
 ### fit a normal distribution
-### taking the square root of carbon monoxide greatly reduces the skewness and brings the data a little closer to a normal
+### taking the square of carbon monoxide greatly reduces the skewness and brings the data a little closer to a normal
 ### distribution
 pm_readmissions_regression %>%
   mutate(carbon_monoxide = carbon_monoxide^2) %>%
@@ -69,8 +69,8 @@ pm_readmissions_regression %>%
 skewness(pm_readmissions_regression$carbon_monoxide, na.rm = TRUE)
 kurtosis(pm_readmissions_regression$carbon_monoxide, na.rm = TRUE)
 
-skewness(sqrt(pm_readmissions_regression$carbon_monoxide), na.rm = TRUE)
-kurtosis(sqrt(pm_readmissions_regression$carbon_monoxide), na.rm = TRUE)
+skewness(pm_readmissions_regression$carbon_monoxide^2, na.rm = TRUE)
+kurtosis(pm_readmissions_regression$carbon_monoxide^2, na.rm = TRUE)
 
 ### Taking the log of the lead measure greatly reduces our skewness and kurtosis, bringing both closer to reflecting a normal
 ### distribution
