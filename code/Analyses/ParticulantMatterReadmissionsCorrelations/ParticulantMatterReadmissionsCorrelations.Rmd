@@ -10,7 +10,12 @@ output:
 
 ```{r setup, include=FALSE}
 ### Set knitr options
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ### load packages
 library(workflowsets)
 library(rcartocolor)
@@ -20,6 +25,7 @@ library(tidyverse)
 library(DescTools)
 library(ggthemes)
 library(forcats)
+library(ggpubr)
 library(ghibli)
 library(skimr)
 library(infer)
@@ -28,8 +34,12 @@ library(gt)
 pm_readmissions_regression <- read_csv("data/final/particulantMatterReadmissionsCorrelation/pm_readmissions_regression.csv")
 measure_table <- read_csv("data/final/particulantMatterReadmissionsCorrelation/measures_table.csv")
 ```
+## Introduction/Summary: A Breath of Concern - Exploring the Link Between Polluted Air and Hospital Readmissions
+Have you ever wondered if the air you breathe could affect your health in more ways than just a scratchy throat on a smoggy day? Researchers have been probing this very question, unraveling the potential ties between air pollution and our long-term health. This study takes a brief dive into one specific concern: could tiny particles lurking in the air be linked to an increased risk of returning to the hospital after treatment for certain respiratory and heart conditions?
 
-##The Research Question
+We'll be investigating this connection for five different medical conditions, from acute myocardial infarctions (commonly known as heart attacks) to pneumonia, all while focusing on two types of microscopic air pollutants: particulate matter 2.5 (PM2.5) and carbon monoxide. In the process, we will also be using the `purrr` package's mapping functionality with the `tidymodels` package to demonstrate how easy it can be to use regression models to measure correlations between multiple pairs of independent and dependent variables. Buckle up, data detectives, as we embark on a journey through hospital readmission rates, air quality measurements, and statistical sleuthing!
+
+## The Research Question
 In short our research question can be stated as, "Is there a correlation between the amount of particulant matter measured in the air and the rate of hospital readmissions for people who received treatment for respiratory and cardiac ailments?" That is the overall question of interest. The data and methodology we use will allow us to produce multiple research questions that are more precise. Our data consists of the readmissions rates for five treatments (Acute Myocardial Infarction (AMI) 30-Day Readmission Rate, Rate of readmission for CABG, Rate of readmission for chronic obstructive pulmonary disease (COPD) patients, Heart failure (HF) 30-Day Readmission Rate, and Pneumonia (PN) 30-Day Readmission Rate) and two measures of particulant matter (Carbon Monoxide and Lead PM2.5 LC). Both measures are for counties in California. For this analysis we will use a threshold of p<0.05 to determine statistical significance. We want check for correlation between each treatment-particulant matter pair, resulting in ten research questions or pairs of hypotheses to test.
 
 $H_\theta$ : There is no relationship between the amount of Lead PM 2.5 LC measured in the air and the 30-day readmission rate for acute myocardial infarction in California counties.
@@ -81,9 +91,13 @@ $H_\theta$ : There is no relationship between the amount of Carbon Monoxide meas
 
 $H_\alpha$ : There is a relationship between the amount of Carbon Monoxide measured in the air and the pneumonia (PN) 30-day readmission rate in California counties.
 
-##The Data
-###Description of the Data
-With our research question defined and threshold set let's take a look at the data we will be working with. The data used in this analysis was collected from two sources, the Unplanned Hospital Visits dataset provided by the Centers for Medicare and Medicaid services and annual summary data by county collected from the Environmental Protection Agency.
+## The Data: Tales of Two Datasets
+### Description of the Data
+With our research question defined and threshold set let's take a look at the data we will be working with. Imagine two bustling data warehouses, each holding crucial pieces of this puzzle. One, brimming with hospital records, whispers stories of readmission rates across counties in California. The other, a repository of environmental data, chronicles the dance of PM2.5 and carbon monoxide in the very air we breathe. With careful merging and cleaning, these two datasets join forces, forming the foundation for our investigation.
+
+But the story isn't without its twists. Missing data here and there, like shy guests at a party, add a touch of intrigue. Yet, with a bit of statistical know-how, we'll wrangle these datasets into submission, coaxing out their secrets and unveiling potential connections between air quality and hospital readmissions.
+
+ The data used in this analysis was collected from the Unplanned Hospital Visits dataset provided by the Centers for Medicare and Medicaid services and annual summary data by county collected from the Environmental Protection Agency.
 
 The data from CMS took the average scores of the hospitals for each measure by county and weighted them by the denominator value for that hospital and measure. The EPA data provided multiple measures for some counties where there were multiple devices recording particulant matter in the county. In these cases the average was calculated and is used. The data from both the EPA and CMS are measures collected in the year 2022.
 
@@ -94,14 +108,18 @@ measure_table %>%
   gt()
 ```
 
-###Exploratory Analysis
-####Summary Statistics
+### Exploratory Analysis: A Peek Behind the Curtain
+Before diving into the nitty-gritty of statistics, let's get a feel for our data. Boxplots emerge, painting pictures of the spread and quirks of each variable. Density plots, like gentle hills and valleys, reveal the underlying distributions of hospital readmission rates and air quality measures.
+
+We discover some interesting details. The data leans towards normality, a good sign for our statistical tests. But, oh, those carbon monoxide and PM2.5 measurements! They're a bit skewed, like stubborn party hats refusing to sit quite right. But fear not, we have a secret weapon: transformations! A sprinkle of squaring and a dash of logarithms straighten these mischievous variables, readying them for the statistical showdown.
+
+#### Summary Statistics
 The variables we will be using in our regressions will be numeric. As such, it is a good idea to get summary statistics for each variable. We can easily see the quartiles and means for each variable below as well as missing values.
 ```{r summary statistics}
 summary(pm_readmissions_regression)
 ```
 
-####Exploratory Graphs
+#### Exploratory Graphs
 We can also view boxplots of the numeric variables to get and idea for their spread as well.
 
 ```{r boxplots}
@@ -184,7 +202,7 @@ ggarrange(
 
 ```
 
-####More Normal Distributions
+#### More Normal Distributions
 We can see that most of our measures of hospital readmissions data follow patterns relatively close to normal distributions. The EPA measures, on the other hand do not. The `carbon_monoxide` variable is negatively skewed and the `lead_pm2_5_lc` variable is very positively skewed. Because of this we transform these variables to take the squared value of `carbon_monoxide` measures and the log transform of `lead_pm2_5_lc` measures. This helps greatly improve measures of skew and kurtosis in both variables to help them more closely resemble normal distributions. You can see the improvement below. 
 
 ```{r density change}
@@ -222,10 +240,16 @@ ggarrange(
 
 ```
 
-####Outliers
+#### Outliers
 This transformation also helps reduce the skew from the outlier in the `lead_pm2_5_lc` variable. The outlier comes from Imperial county which is also a heavy outlier in the 2018 data. This analyst hasn't found any explanation on why Imperial county would have such high measure of lead particulant matter. If the readers have any insight on this I would be greatly interested in learning. However, since the county is repeatedly an outlier when a broader timeline is taken into account, the observation is left in. Results will be reported with and without the observation.
 
-##Regression Analysis
+## Regression Analysis: The Models Take the Stage
+Now, the moment of truth arrives. We unleash a battery of statistical models, each one pairing a hospital readmission rate with an air pollutant, testing for potential correlations. Imagine these models as tiny sleuths, meticulously sifting through the data, searching for whispers of connection.
+
+With bated breath, we await the results. And, well, none of the sleuths crack the case completely. While some relationships show a hint of intrigue, none reach the level of statistical significance. This means, sadly, we haven't unearthed a definitive link between air pollution and increased hospital readmissions for these specific conditions.
+
+However, two pairs of sleuths stand out from the crowd: PM2.5 and readmission rates for both chronic obstructive pulmonary disease (COPD) and pneumonia. Their whispers are the loudest, suggesting a need for further investigation. And, there's that pesky outlier, Imperial County, with its unusually high PM2.5 levels. Should it stay or should it go? We'll explore this dilemma later...
+
 Using `purrr`'s `map` function makes it easy for us to use tidy models to get a regression model for each pair of independent and dependent variables we are interested in. The result is the table below.
 
 ```{r map regressions}
@@ -304,5 +328,118 @@ p11 <- pm_readmissions_regression %>%
   scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
   theme_few()
   
+ggarrange(
+  p10, p11,
+  ncol = 2
+)
+```
+
+We can view all the same results with the outlier from Imperial County removed. Below we can see that while omitting that observation doesn't change the results for the `READM_30_CABG` or `READM_30_PN` much it does drastically change the results for the correlation between `READM_30_AMI` and `lead_pm2_5_lc`, bringing it closer to the significance level observed by the two variables above, and between `READM_30_COPD` and `lead_pm2_5_lc` actually taking past our threshold of significance. It also increases the r-squared values for all these models, but they all remain closer to 0 than 1 with the highest values being ~0.21, suggesting that while the relationship may be significant, it is not strong.  
+
+```{r remove Imperial County}
+### set the model specifications
+model_spec <- linear_reg() %>%
+  set_engine("lm")
+
+### Define Dependent and Independent Variables:
+dependent_vars <- c("READM_30_AMI", "READM_30_CABG", "READM_30_COPD", "READM_30_HF", "READM_30_PN")
+independent_vars <- c("lead_pm2_5_lc", "carbon_monoxide")
+
+### Generate Model Formulas:
+models <- crossing(dependent_vars, independent_vars) %>% 
+  mutate(formula = map2(dependent_vars, independent_vars, ~ as.formula(paste0(.x, " ~ ", .y)))) %>%
+  pull(formula) %>%
+  ### Fit and Collect Models:
+  map( ~fit(
+    formula = .x, 
+    data = pm_readmissions_regression %>%
+      filter(lead_pm2_5_lc < 0.008) %>%
+      mutate(
+        carbon_monoxide = carbon_monoxide^2,
+        lead_pm2_5_lc = log(lead_pm2_5_lc)
+      ), 
+    model_spec
+  ))
+
+### Tidy Model Results:
+results <- models %>%
+  map(tidy) %>%
+  bind_rows() %>%
+  bind_cols(dependent_vars = rep(map_chr(1:10, ~models[[.x]]$preproc$y_var), times = 2))
+
+print(results)
+
+results %>%
+  mutate(p.value = round(p.value, 8))
+### collect r squared values
+bind_rows(
+  glance(models[[2]]),
+  glance(models[[6]]),
+  glance(models[[8]]),
+glance(models[[10]])
+) %>%
+  bind_cols(dependent_var = c(
+    models[[2]]$preproc$y_var,
+    models[[6]]$preproc$y_var,
+    models[[8]]$preproc$y_var,
+    models[[10]]$preproc$y_var
+  )) %>%
+  select(dependent_var, everything())
+
+### scatter plots
+p12 <- pm_readmissions_regression %>%
+  select(lead_pm2_5_lc, READM_30_CABG) %>%
+  drop_na() %>%
+  filter(lead_pm2_5_lc < 0.008) %>%
+  ggplot(aes(y = READM_30_CABG, x = lead_pm2_5_lc)) +
+  geom_point(color = "#B7D9F2FF") +
+  geom_smooth(method = "lm", color = "#C3AF97FF")  +
+  scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
+  theme_few()
+
+p13 <- pm_readmissions_regression %>%
+  select(lead_pm2_5_lc, READM_30_PN) %>%
+  drop_na() %>%
+  filter(lead_pm2_5_lc < 0.008) %>%
+  ggplot(aes(y = READM_30_PN, x = lead_pm2_5_lc)) +
+  geom_point(color = "#B7D9F2FF") +
+  geom_smooth(method = "lm", color = "#C3AF97FF")  +
+  scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
+  theme_few()
+
+p14 <- pm_readmissions_regression %>%
+  select(lead_pm2_5_lc, READM_30_AMI) %>%
+  drop_na() %>%
+  filter(lead_pm2_5_lc < 0.008) %>%
+  ggplot(aes(y = READM_30_AMI, x = lead_pm2_5_lc)) +
+  geom_point(color = "#B7D9F2FF") +
+  geom_smooth(method = "lm", color = "#C3AF97FF")  +
+  scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
+  theme_few()
+
+p15 <- pm_readmissions_regression %>%
+  select(lead_pm2_5_lc, READM_30_COPD) %>%
+  drop_na() %>%
+  filter(lead_pm2_5_lc < 0.008) %>%
+  ggplot(aes(y = READM_30_COPD, x = lead_pm2_5_lc)) +
+  geom_point(color = "#B7D9F2FF") +
+  geom_smooth(method = "lm", color = "#C3AF97FF")  +
+  scale_fill_ghibli_d("SpiritedMedium", direction = -1) +
+  theme_few()
+  
+ggarrange(
+  p12, p13, p14, p15,
+  nrow = 2,
+  ncol = 2
+)
 
 ```
+
+## Conclusion: A Pause for Reflection, Not a Full Stop
+While our initial quest for a definitive link hasn't been entirely successful, we've made some valuable discoveries. We've delved into the intricate relationship between air quality and health, highlighting potential avenues for further research. The whisper of a connection between PM2.5 and some respiratory conditions deserves deeper exploration, with larger datasets and refined analyses.
+
+And now, for the elephant in the room: Imperial County. Does its outlier status distort the picture? Removing it from the analysis reveals a shift, bringing the PM2.5-COPD relationship closer to significance. This adds another layer of intrigue, suggesting the need for further studies that factor in unique county-level characteristics.
+
+This journey may not have ended with a resounding triumph, but it has opened doors to fascinating possibilities. We've planted seeds of knowledge, watered them with data, and watched them sprout into questions begging for further exploration. The quest to understand the relationship between air pollution and health continues, and this study has added its unique chapter to the ongoing narrative.
+
+And who knows, perhaps somewhere down the line, another study will build upon our findings, finally cracking the case and revealing the full story of air pollution's impact on our health. Until then, we remain vigilant, continuing to explore the intricate links between our environment and our well-being.
